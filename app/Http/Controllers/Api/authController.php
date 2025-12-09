@@ -12,12 +12,6 @@ use App\Notifications\EmailVerificationRequest;
 
 class authController extends Controller
 {
-    protected $emailVerificationService;
-    public function __construct(EmailVerificationService $emailVerificationService)
-    {
-        $this->emailVerificationService = $verificationService;
-    }
-
     public function userRegister(Request $request)
     {
         $data = $request->validate([
@@ -27,18 +21,18 @@ class authController extends Controller
             'password_confirmation'=>'required'
         ]);
         
-        $matchPassword = $data['password'] === $data['password_confirmation'];
+        // $matchPassword = $data['password'] === $data['password_confirmation'];
 
-        if (! $matchPassword) {
-            return response()->json(['message' => 'Password does not match'], 422);
-        }
+        // if (! $matchPassword) {
+        //     return response()->json(['message' => 'Password does not match'], 422);
+        // }
 
         $user = new User();
         $user->name = $data['name'];
         $user->email = $data['email'];
         $user->password = Hash::make($data['password']);
-        $use->role = "user";
-        $user->creatred_at = Carbon::now();
+        $user->role = "user";
+        $user->created_at = Carbon::now();
         $user->save();
 
         $token = $user->createToken("auth_token")->plainTextToken;

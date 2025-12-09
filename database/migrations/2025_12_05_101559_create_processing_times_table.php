@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('processing_times', function (Blueprint $table) {
             $table->id();
-            $table->foreign('service_id')->constrained('services')->cascadeOnDelete('cascade');
+            $table->foreignId('service_id')->nullable()->constrained()->onDelete('cascade');
             $table->text('details')->nullable();
             $table->time('time')->nullable();
             $table->timestamps();

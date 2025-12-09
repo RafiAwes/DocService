@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('category_id')->constrained('categories')->cascadeOnDelete('cascade');
             $table->string('title');
-            $table->enum('order_type', ['quote','checkout'])->default('null')->nullable();
+            $table->enum('order_type', ['quote','checkout','null'])->default('null')->nullable();
             $table->integer('price')->unsigned()->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
