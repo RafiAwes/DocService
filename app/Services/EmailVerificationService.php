@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Notifications\EmailVerificationRequested;
-use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use App\Notifications\EmailVerificationRequest;
 
 class EmailVerificationService
 {
@@ -27,7 +27,7 @@ class EmailVerificationService
         ]);
 
         // Send verification code to user's email
-        $user->notify(new EmailVerificationRequested($verificationCode));
+        $user->notify(new EmailVerificationRequest($verificationCode));
 
         return $verificationCode;
     }
@@ -35,11 +35,16 @@ class EmailVerificationService
     /**
      * Verify the email with the provided code
      */
+
     public function verifyEmail(User $user, $verificationCode)
     {
         // Check if user is already verified
         if ($user->email_verified_at !== null) {
             return ['success' => false, 'message' => 'Email is already verified'];
+        }
+
+        if(empty($user->verification_code) || empty($user->verification_expires_at)) {
+            return ['success' => false, 'message' => 'No verification code found. Please request a new one.'];
         }
 
         // Check if verification code has expired
@@ -61,4 +66,5 @@ class EmailVerificationService
 
         return ['success' => true, 'message' => 'Email verified successfully'];
     }
+   
 }

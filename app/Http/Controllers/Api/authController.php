@@ -7,11 +7,17 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use App\Services\EmailVerificationService;
 use App\Notifications\EmailVerificationRequest;
 
 class authController extends Controller
 {
+    protected $emailVerificationService;
+    public function __construct()
+    {
+        $this->emailVerificationService = new EmailVerificationService();
+    }
     public function userRegister(Request $request)
     {
         $data = $request->validate([
@@ -21,12 +27,7 @@ class authController extends Controller
             'password_confirmation'=>'required'
         ]);
         
-        // $matchPassword = $data['password'] === $data['password_confirmation'];
-
-        // if (! $matchPassword) {
-        //     return response()->json(['message' => 'Password does not match'], 422);
-        // }
-
+        
         $user = new User();
         $user->name = $data['name'];
         $user->email = $data['email'];
@@ -34,11 +35,14 @@ class authController extends Controller
         $user->role = "user";
         $user->created_at = Carbon::now();
         $user->save();
+        
+        $this->emailVerificationService->sendVerificationCode($user);
+        
 
         $token = $user->createToken("auth_token")->plainTextToken;
        
         return response()->json([
-            'message' => 'User created successfully', 
+            'message' => 'User created successfully. Please check your email for verification code.', 
             'user' => $user,
             'token' => $token,
             'token_type' => 'Bearer',
@@ -89,96 +93,31 @@ class authController extends Controller
         ], 200);
     }
 
-    public function sendVerificationCode(Request $request)
+    public function verifyRegistration(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email|exists:users,email',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user = User::where('email', $request->email)->first();
-        
-        // Check if user is already verified
-        if ($user->email_verified_at !== null) {
-            return response()->json([
-                'message' => 'Email is already verified'
-            ], 422);
-        }
-
-        // Generate 6-digit verification code
-        $verificationCode = rand(100000, 999999);
-        
-        // Set expiration time (30 minutes from now)
-        $expiresAt = Carbon::now()->addMinutes(30);
-        
-        // Save verification code and expiration time
-        $user->update([
-            'verification_code' => Hash::make($verificationCode),
-            'verification_expires_at' => $expiresAt,
-        ]);
-
-        // Send verification code to user's email
-        $user->notify(new EmailVerificationRequest($verificationCode));
-
-        return response()->json([
-            'message' => 'Verification code sent to your email'
-        ], 200);
-    }
-
-    /**
-     * Verify the email with the provided code
-     */
-    public function verifyEmail(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+        $data = $request->validate([
             'email' => 'required|email|exists:users,email',
             'verification_code' => 'required|numeric|digits:6',
         ]);
 
-        if ($validator->fails()) {
+        $user = User::where('email', $data['email'])->first();
+
+        $result = $this->emailVerificationService->verifyEmail($user, $data['verification_code']);
+
+        if (!$result['success']) {
             return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'message' => $result['message']
             ], 422);
         }
 
-        $user = User::where('email', $request->email)->first();
-        
-        // Check if user is already verified
-        if ($user->email_verified_at !== null) {
-            return response()->json([
-                'message' => 'Email is already verified'
-            ], 422);
-        }
-
-        // Check if verification code has expired or doesn't exist
-        if ($user->verification_expires_at === null || Carbon::now()->isAfter($user->verification_expires_at)) {
-            return response()->json([
-                'message' => 'Verification code has expired or not requested. Please request a new one.'
-            ], 422);
-        }
-
-        // Verify the code
-        if (!Hash::check($request->verification_code, $user->verification_code)) {
-            return response()->json([
-                'message' => 'Invalid verification code'
-            ], 422);
-        }
-
-        $user->email_verified_at = Carbon::now();
-        $user->verification_code = null;
-        $user->verification_expires_at = null;
-        $user->update();
-
+        $token = $user->createToken("auth_token")->plainTextToken;
         return response()->json([
-            'message' => 'Email verified successfully'
+            'message' => $result['message'],
+            'access_token' => $token,
+            'token_type' => 'Bearer',
         ], 200);
+        
+        return ['success' => true, 'message' => 'Email verified successfully'];
     }
 
      public function sendResetLinkEmail(Request $request)
@@ -259,6 +198,76 @@ class authController extends Controller
 
         return response()->json([
             'message' => 'Password reset successfully'
+        ], 200);
+    }
+
+    // sending verification code
+    public function sendVerificationCode(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        
+        // Check if user is already verified
+        if ($user->email_verified_at !== null) {
+            return response()->json([
+                'message' => 'Email is already verified'
+            ], 422);
+        }
+
+        // Generate 6-digit verification code
+        $verificationCode = rand(100000, 999999);
+        
+        // Set expiration time (30 minutes from now)
+        $expiresAt = Carbon::now()->addMinutes(30);
+        
+        // Save verification code and expiration time
+        $user->update([
+            'verification_code' => Hash::make($verificationCode),
+            'verification_expires_at' => $expiresAt,
+        ]);
+
+        // Send verification code to user's email
+        $user->notify(new EmailVerificationRequested($verificationCode));
+
+        return response()->json([
+            'message' => 'Verification code sent to your email'
+        ], 200);
+    }
+
+    /**
+     * Verify the email with the provided code
+     */
+    
+
+    //resending verification code
+    public function resendVerificationCode(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        if ($user->email_verified_at !== null) {
+            return response()->json([
+                'message' => 'Email is already verified.'
+            ], 422);
+        }
+
+        $this->emailVerificationService->sendVerificationCode($user);
+
+        return response()->json([
+            'message' => 'Verification code resent successfully. Please check your email.'
         ], 200);
     }
 }
