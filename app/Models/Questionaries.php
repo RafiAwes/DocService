@@ -8,6 +8,7 @@ class Questionaries extends Model
 {
     public $fillable = [
         'service_id',
+        'name',
         'type',
         'options',
     ];

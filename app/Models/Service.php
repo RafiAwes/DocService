@@ -14,13 +14,23 @@ class Service extends Model
         'description',
     ] ;
 
-    public function category()
-    {
-        return $this->belongsToMany(Category::class);
+    public function includedServices() {
+        return $this->hasMany(IncludedService::class);
     }
 
-    public function includedServices()
-    {
-        return $this->hasMany(IncludedService::class);
+    public function processingTimes() {
+        return $this->hasMany(ProcessingTime::class);
+    }
+
+    public function deliveryDetails() {
+        return $this->hasMany(DeliveryDetails::class);
+    }
+
+    public function questionaries() {
+        return $this->hasMany(Questionaries::class);
+    }
+
+    public function requiredDocuments() {
+        return $this->hasMany(RequiredDocuments::class);
     }
 }
