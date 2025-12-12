@@ -11,4 +11,19 @@ class Quote extends Model
         'user',
         'type',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function customQuote()
+    {
+        return $this->hasOne(CustomQuote::class);
+    }
+
+    public function serviceQuote()
+    {
+        return $this->hasOne(ServiceQuote::class);
+    }
 }

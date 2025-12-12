@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('service_id')->constrained('services')->cascadeOnDelete();
             $table->string('delivery_type');
+            $table->text('details');
             $table->integer('price');
             $table->timestamps();
         });

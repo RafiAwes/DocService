@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('required_documents', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('service_id')->constrained('services')->cascadeOnDelete();
+            $table->string('title');
             $table->timestamps();
         });
     }
