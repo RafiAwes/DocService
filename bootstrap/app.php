@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Application;
+use App\Http\Middleware\UserMiddleware;
 use App\Http\Middleware\AdminMiddleware;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             // 'auth' => 'auth:sanctum',
             'admin' => AdminMiddleware::class,
+            'user' => UserMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

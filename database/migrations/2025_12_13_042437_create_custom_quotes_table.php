@@ -14,9 +14,13 @@ return new class extends Migration
         Schema::create('custom_quotes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('quote_id')->constrained('quotes')->cascadeOnDelete();
-            $table->string('email');
-            $table->string('contact_number');
-            $table->text('doc_request')->nullable();
+            $table->string('name');
+            $table->string('email')->nullable();
+            $table->string('contact_number')->nullable();
+            $table->text('document_request')->nullable();
+            $table->string('drc'); // Document Return Country
+            $table->string('duc'); // Document Use Country
+            $table->string('residence_country')->nullable();
             $table->timestamps();
         });
     }

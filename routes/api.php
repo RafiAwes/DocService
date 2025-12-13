@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\authController;
+use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CategoryController;
 
@@ -43,5 +44,10 @@ Route::group (['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], 
     });
 });
 
+Route::group(['middleware'=> ['auth:sanctum','user'],'prefix' => 'user'], function () {
+    Route::group(['controller' => QuoteController::class], function () {
+        Route::post('create/quote','createQuote');
+    });
+});
 
 

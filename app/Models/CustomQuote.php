@@ -8,8 +8,17 @@ class CustomQuote extends Model
 {
     protected $fillable = [
         'quote_id',
+        'name',
         'email',
         'contact_number',
-        'doc_request',
+        'document_request',
+        'drc',
+        'duc',
+        'residence_country',
     ];
+
+    public function quote()
+    {
+        return $this->belongsTo(Quote::class);
+    }
 }
