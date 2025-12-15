@@ -166,7 +166,7 @@ class authController extends Controller
     //     ], 200);
     // }
 
-    public function sendResetLinkEmail(Request $request)
+    public function sendResetOTP(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|exists:users,email',
@@ -187,7 +187,7 @@ class authController extends Controller
         $resetToken = Str::random(6);
         
         // Set expiration time (60 minutes from now)
-        $expiresAt = Carbon::now()->addMinutes(60);
+        $expiresAt = Carbon::now()->addMinutes(10);
         
         // Save reset token and expiration time
         $user->update([
@@ -208,51 +208,177 @@ class authController extends Controller
     /**
      * Reset the user's password
      */
-    public function resetPassword(Request $request)
+    // public function resetPassword(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'email' => 'required|email|exists:users,email',
+    //         'token' => 'required|string',
+    //         'password' => 'required|string|min:8|confirmed',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'message' => 'Validation failed',
+    //             'errors' => $validator->errors()
+    //         ], 422);
+    //     }
+
+    //     $user = User::where('email', $request->email)->first();
+
+    //     // Check if reset token has expired
+    //     if (!$user->reset_token_expires_at || Carbon::now()->isAfter($user->reset_token_expires_at)) {
+    //         return response()->json([
+    //             'status'=> false,
+    //             'message' => 'Password reset token has expired. Please request a new one.'
+    //         ], 422);
+    //     }
+
+    //     // Verify the token
+    //     if (!Hash::check($request->token, $user->reset_token)) {
+    //         return response()->json([
+    //             'status'=> false,
+    //             'message' => 'Invalid password reset token'
+    //         ], 422);
+    //     }
+
+    //     // Update password
+    //     $user->update([
+    //         'password' => Hash::make($request->password),
+    //         'reset_token' => null,
+    //         'reset_token_expires_at' => null,
+    //     ]);
+
+    //     return response()->json([
+    //         'status'=> true,
+    //         'message' => 'Password reset successfully'
+    //     ], 200);
+    // }
+
+    public function verifyOtp(Request $request)
     {
+        // 1. Validate Input
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|exists:users,email',
-            'token' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
+            'otp' => 'required|string', // The 6-digit code
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['status' => false, 'errors' => $validator->errors()], 422);
         }
 
         $user = User::where('email', $request->email)->first();
 
-        // Check if reset token has expired
+        // 2. Check Expiry
         if (!$user->reset_token_expires_at || Carbon::now()->isAfter($user->reset_token_expires_at)) {
             return response()->json([
-                'status'=> false,
-                'message' => 'Password reset token has expired. Please request a new one.'
+                'status'  => false,
+                'message' => 'OTP has expired. Please request a new one.'
             ], 422);
         }
 
-        // Verify the token
-        if (!Hash::check($request->token, $user->reset_token)) {
+        // 3. Check Token Match
+        if (!Hash::check($request->otp, $user->reset_token)) {
             return response()->json([
-                'status'=> false,
-                'message' => 'Invalid password reset token'
+                'status'  => false,
+                'message' => 'Invalid OTP code'
             ], 422);
         }
 
-        // Update password
+        // 4. Mark as Verified
         $user->update([
-            'password' => Hash::make($request->password),
-            'reset_token' => null,
-            'reset_token_expires_at' => null,
+            'reset_token_verified_at' => Carbon::now(),
+            'reset_token' => null, // Invalidate the token after verification
         ]);
 
         return response()->json([
-            'status'=> true,
+            'status'  => true,
+            'message' => 'OTP verified successfully. You may now reset your password.'
+        ], 200);
+    }
+
+    public function changePassword(Request $request)
+    {
+        // 1. Validate Input
+        $validator = Validator::make($request->all(), [
+            'email'           => 'required|email|exists:users,email',
+            'old_password'    => 'required|string',
+            'password'        => 'required|string|min:8|confirmed', // New password + confirmation
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => false, 'errors' => $validator->errors()], 422);
+        }
+        
+        $user = User::where('email', $request->email)->first();
+
+        // 2. Security Check: Does the Old Password match?
+        if (!Hash::check($request->old_password, $user->password)) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'The old password provided is incorrect.'
+            ], 401); // 401 Unauthorized
+        }
+
+        // 3. Update to New Password
+        $user->update([
+            'password' => Hash::make($request->password),
+            // Optional: You might want to revoke existing tokens if you are using API tokens
+            // $user->tokens()->delete(); 
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Password changed successfully.'
+        ], 200);
+    }
+
+    /**
+     * Step 2: Set the New Password
+     */
+    public function resetPassword(Request $request)
+    {
+        // 1. Validate Input
+        $validator = Validator::make($request->all(), [
+            'email'    => 'required|email|exists:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        // 2. Security Check: Was the OTP verified recently?
+        // We allow a 15-minute window between verifying OTP and setting the password.
+        if (!$user->reset_token_verified_at) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'You must verify the OTP first.'
+            ], 403);
+        }
+
+        if (Carbon::now()->diffInMinutes($user->reset_token_verified_at) > 15) {
+             return response()->json([
+                'status'  => false,
+                'message' => 'Verification session expired. Please verify OTP again.'
+            ], 408);
+        }
+
+        // 3. Update Password & Clear Tokens
+        $user->update([
+            'password'                => Hash::make($request->password),
+            'reset_token'             => null,
+            'reset_token_expires_at'  => null,
+            'reset_token_verified_at' => null, // Reset the flag so it can't be reused
+        ]);
+
+        return response()->json([
+            'status'  => true,
             'message' => 'Password reset successfully'
         ], 200);
     }
+
 
     // sending verification code
     public function sendVerificationCode(Request $request)

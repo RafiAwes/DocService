@@ -28,6 +28,8 @@ class User extends Authenticatable
         'email_verified_at',
         'reset_token_expires_at',
         'reset_token',
+        'reset_token_verified',
+        'reset_token_verified_at',
     ];
 
     protected $casts = [

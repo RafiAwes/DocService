@@ -89,7 +89,7 @@ class ServiceController extends Controller
 
             // SUCCESS RESPONSE
             return response()->json([
-                'success' => true,
+                'status' => true,
                 'message' => 'Service created successfully with all relations!',
                 'data'    => $service->load([
                     'includedServices', 
@@ -104,7 +104,7 @@ class ServiceController extends Controller
             // ERROR RESPONSE
             // We cannot use $service here because it failed to create!
             return response()->json([
-                'success' => false,
+                'status' => false,
                 'message' => 'Failed to create service.',
                 'error'   => $e->getMessage() // This will tell you exactly what went wrong
             ], 500);
@@ -209,7 +209,7 @@ class ServiceController extends Controller
 
             // Refresh the model to get the new data from DB
             return response()->json([
-                'success' => true,
+                'status' => true,
                 'message' => 'Service updated successfully!',
                 'data'    => $service->fresh()->load([
                     'includedServices', 
@@ -222,7 +222,7 @@ class ServiceController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => false,
                 'message' => 'Failed to update service.',
                 'error'   => $e->getMessage()
             ], 500);
@@ -235,7 +235,7 @@ class ServiceController extends Controller
 
         if (! $service) {
             return response()->json([
-                'success' => false,
+                'status' => false,
                 'message' => 'Service not found.',
             ], 404);
         }
@@ -244,13 +244,13 @@ class ServiceController extends Controller
             $service->delete();
 
             return response()->json([
-                'success' => true,
+                'status' => true,
                 'message' => 'Service deleted successfully!',
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => false,
                 'message' => 'Failed to delete service.',
                 'error'   => $e->getMessage()
             ], 500);

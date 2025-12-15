@@ -24,8 +24,10 @@ Route::group(['controller' => authController::class], function () {
 
 
     // Password Reset Routes
-    Route::post('/password/email', 'sendResetLinkEmail');
+    Route::post('/password/email', 'sendResetOTP');
+    Route::post('/password/verify-otp', 'verifyOtp');
     Route::post('/password/reset', 'resetPassword');
+    Route::post('/password/change', 'changePassword');
 });
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [authController::class, 'logout']);
