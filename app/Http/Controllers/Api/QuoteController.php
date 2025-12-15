@@ -122,4 +122,81 @@ class QuoteController extends Controller
             ], 500);
         }
     }
+
+    public function updateQuote(Request $request, $id)
+    {
+           $validated = $request->validate([
+            // Common Fields
+            // 'user_id' => 'required|exists:users,id',
+            'type'    => 'required|string|in:custom,service',
+
+            // Custom Quote Fields (Required if type is custom)
+            'name'             => 'required_if:type,custom|nullable|string|max:255',
+            'email'            => 'required_if:type,custom|nullable|email|max:255',
+            'contact_number'   => 'required_if:type,custom|nullable|string|max:20',
+            'document_request' => 'required_if:type,custom|nullable|string',
+            'drc'              => 'required_if:type,custom|nullable|string|max:100', // Document Return Country
+            'duc'              => 'required_if:type,custom|nullable|string|max:100', // Document Use Country
+            'residence_country'=> 'required_if:type,custom|nullable|string|max:100',
+
+            // Service Quote Fields (Required if type is service)
+            'service_id' => 'required_if:type,service|exists:services,id',
+
+            // Answers Fields (For Service Quotes)
+            'delivery_details_ids'   => 'nullable|array', 
+            'delivery_details_ids.*' => 'integer|exists:delivery_details,id',
+            'south_african'          => 'nullable|boolean',
+            'age'                    => 'nullable|integer',
+            'about_yourself'         => 'nullable|string',
+            'birth_certificate'      => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120', // 5MB Max
+            'nid_card'               => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        try {
+            $result = DB::transaction(function () use ($request, $validated, $id) {
+                
+                // A. Find Parent Quote
+                $quote = Quote::findOrFail($id);
+
+                // B. Update "Custom" Quote Logic
+                if ($validated['type'] === 'custom') {
+                    $customQuote = CustomQuote::where('quote_id', $quote->id)->firstOrFail();
+                    $customQuote->update([
+                        'name'              => $validated['name'],
+                        'email'             => $validated['email'],
+                        'contact_number'    => $validated['contact_number'],
+                        'document_request'  => $validated['document_request'],
+                        'drc'               => $validated['drc'],
+                        'duc'               => $validated['duc'],
+                        'residence_country' => $validated['residence_country'],
+                    ]);
+                }
+
+                // C. Update "Service" Quote Logic
+                if ($validated['type'] === 'service') {
+                    $serviceQuote = ServiceQuote::where('quote_id', $quote->id)->firstOrFail();
+                    $serviceQuote->update([
+                        'service_id' => $validated['service_id'],
+                    ]);
+                }
+
+                return $quote;
+            });
+
+            // Return Success
+            return response()->json([
+                'success' => true,
+                'message' => 'Quote updated successfully',
+                'data'    => $result->load(['customQuote', 'serviceQuote.answer'])
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update quote', 
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+        
+    }
 }

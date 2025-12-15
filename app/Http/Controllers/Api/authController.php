@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use Carbon\Carbon;
 use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Services\EmailVerificationService;
+use App\Notifications\PasswordResetRequested;
 use App\Notifications\EmailVerificationRequest;
 
 class authController extends Controller
@@ -42,8 +44,9 @@ class authController extends Controller
         $token = $user->createToken("auth_token")->plainTextToken;
        
         return response()->json([
+            'status' => true,
             'message' => 'User created successfully. Please check your email for verification code.', 
-            'user' => $user,
+            'data' => $data,
             'token' => $token,
             'token_type' => 'Bearer',
         ], 201);
@@ -59,9 +62,10 @@ class authController extends Controller
         $user = User::where('email', $data['email'])->first();
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
-           throw ValidationException::withMessages([
-               'email' => 'The provided credentials are incorrect.',
-           ]);
+          
+            return response()->json([
+                'message' => 'The provided credentials are incorrect.',
+            ], 401);
         }
 
         if ($user->role =='user') {
@@ -77,6 +81,8 @@ class authController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
+            'status'=> true,
+            'message' => 'User logged in successfully.',
             'access_token' => $token,
             'token_type' => 'Bearer',
         ], 200);
@@ -89,6 +95,7 @@ class authController extends Controller
         $personalAccessToken->delete();
 
         return response()->json([
+            'status'=> true,
             'message' => 'Logged out Successfully.',
         ], 200);
     }
@@ -106,12 +113,14 @@ class authController extends Controller
 
         if (!$result['success']) {
             return response()->json([
+                'status' => false,
                 'message' => $result['message']
             ], 422);
         }
 
         $token = $user->createToken("auth_token")->plainTextToken;
         return response()->json([
+            "status"=> true,
             'message' => $result['message'],
             'access_token' => $token,
             'token_type' => 'Bearer',
@@ -120,7 +129,44 @@ class authController extends Controller
         return ['success' => true, 'message' => 'Email verified successfully'];
     }
 
-     public function sendResetLinkEmail(Request $request)
+    // public function sendResetLinkEmail(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'email' => 'required|email|exists:users,email',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'status'=> false,
+    //             'message' => 'Validation failed',
+    //             'errors' => $validator->errors()
+    //         ], 422);
+    //     }
+
+    //     $user = User::where('email', $request->email)->first();
+        
+    //     // Generate reset token
+    //     $resetToken = Str::random(60);
+        
+    //     // Set expiration time (60 minutes from now)
+    //     $expiresAt = Carbon::now()->addMinutes(60);
+        
+    //     // Save reset token and expiration time
+    //     $user->update([
+    //         'reset_token' => Hash::make($resetToken),
+    //         'reset_token_expires_at' => $expiresAt,
+    //     ]);
+
+    //     // Send reset token to user's email
+    //     $user->notify(new PasswordResetRequested($resetToken));
+
+    //     return response()->json([
+    //         'status' => true,
+    //         'message' => 'Password reset link sent to your email'
+    //     ], 200);
+    // }
+
+    public function sendResetLinkEmail(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|exists:users,email',
@@ -128,6 +174,7 @@ class authController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
+                'status'=> false,
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
@@ -135,8 +182,9 @@ class authController extends Controller
 
         $user = User::where('email', $request->email)->first();
         
-        // Generate reset token
-        $resetToken = Str::random(60);
+        // CHANGED: Generate 6-character token (Alphanumeric: a-z, A-Z, 0-9)
+        // If you want ONLY uppercase and numbers (cleaner for users), use: strtoupper(Str::random(6))
+        $resetToken = Str::random(6);
         
         // Set expiration time (60 minutes from now)
         $expiresAt = Carbon::now()->addMinutes(60);
@@ -148,10 +196,12 @@ class authController extends Controller
         ]);
 
         // Send reset token to user's email
+        // Make sure your Notification class is updated to display this short code!
         $user->notify(new PasswordResetRequested($resetToken));
 
         return response()->json([
-            'message' => 'Password reset link sent to your email'
+            'status' => true,
+            'message' => 'Password reset code sent to your email'
         ], 200);
     }
 
@@ -176,8 +226,9 @@ class authController extends Controller
         $user = User::where('email', $request->email)->first();
 
         // Check if reset token has expired
-        if (Carbon::now()->isAfter($user->reset_token_expires_at)) {
+        if (!$user->reset_token_expires_at || Carbon::now()->isAfter($user->reset_token_expires_at)) {
             return response()->json([
+                'status'=> false,
                 'message' => 'Password reset token has expired. Please request a new one.'
             ], 422);
         }
@@ -185,6 +236,7 @@ class authController extends Controller
         // Verify the token
         if (!Hash::check($request->token, $user->reset_token)) {
             return response()->json([
+                'status'=> false,
                 'message' => 'Invalid password reset token'
             ], 422);
         }
@@ -197,6 +249,7 @@ class authController extends Controller
         ]);
 
         return response()->json([
+            'status'=> true,
             'message' => 'Password reset successfully'
         ], 200);
     }
@@ -210,6 +263,7 @@ class authController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
+                'status' => false,
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
@@ -220,6 +274,7 @@ class authController extends Controller
         // Check if user is already verified
         if ($user->email_verified_at !== null) {
             return response()->json([
+                'status'=> false,
                 'message' => 'Email is already verified'
             ], 422);
         }
@@ -240,6 +295,7 @@ class authController extends Controller
         $user->notify(new EmailVerificationRequested($verificationCode));
 
         return response()->json([
+            'status'=> true,
             'message' => 'Verification code sent to your email'
         ], 200);
     }
@@ -260,6 +316,7 @@ class authController extends Controller
 
         if ($user->email_verified_at !== null) {
             return response()->json([
+                'status'=> false,
                 'message' => 'Email is already verified.'
             ], 422);
         }
@@ -267,6 +324,7 @@ class authController extends Controller
         $this->emailVerificationService->sendVerificationCode($user);
 
         return response()->json([
+            'status'=> true,
             'message' => 'Verification code resent successfully. Please check your email.'
         ], 200);
     }
