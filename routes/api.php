@@ -31,6 +31,7 @@ Route::group(['controller' => authController::class], function () {
 });
 
 Route::get('/service/list',[ServiceController::class, 'serviceList']);
+Route::get('/service/details/{service}',[ServiceController::class,'serviceDetails']);
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [authController::class, 'logout']);
@@ -50,6 +51,12 @@ Route::group (['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], 
         Route::post('create/service','createService');
         Route::put('update/service/{service}','updateService');
         Route::delete('delete/service/{service}','deleteService');
+    });
+
+    Route::group(['controller' => QuoteController::class], function () {
+        Route::get('quotes/list','listQuotes');
+        Route::get('quote/details/{quote}','quoteDetails');
+        Route::delete('delete/quote/{quote}','deleteQuote');
     });
 });
 

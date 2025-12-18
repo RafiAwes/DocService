@@ -12,6 +12,10 @@ class ServiceQuote extends Model
         'delivery_details_ids',
     ];
 
+    protected $casts = [
+        'delivery_details_ids' => 'array',
+    ];
+
     public function quote()
     {
         return $this->belongsTo(Quote::class);

@@ -114,13 +114,11 @@ class ServiceController extends Controller
     /**
      * Update the specified service and its relations.
      */
+
     public function updateService(Request $request, Service $service)
     {
-        // 1. Find the service first (fail fast if not found)
-        // $service = Service::findOrFail($id);
-
-        // 2. Validate (Similar to create, but we can make top-level fields optional if using PATCH logic)
-        // Note: For a full PUT update, we usually expect all data. 
+        // 1. Validation
+        // We add 'id' validation to allow updating existing rows
         $validated = $request->validate([
             // Main Service Fields
             'category_id' => 'sometimes|exists:categories,id',
@@ -130,84 +128,96 @@ class ServiceController extends Controller
             'price'       => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
 
-            // Relations Validation (same rules as create)
-            'included_services'                   => 'nullable|array',
-            'included_services.*.service_type'    => 'required_with:included_services|string',
-            'included_services.*.included_details'=> 'nullable|string',
-            'included_services.*.price'           => 'nullable|numeric',
+            // 1. Included Services
+            'included_services'                 => 'nullable|array',
+            'included_services.*.id'            => 'nullable|integer|exists:included_services,id', // <--- CRITICAL
+            'included_services.*.service_type'  => 'required_with:included_services|string',
+            'included_services.*.included_details' => 'nullable|string',
+            'included_services.*.price'         => 'nullable|numeric',
 
+            // 2. Processing Times
             'processing_times'           => 'nullable|array',
+            'processing_times.*.id'      => 'nullable|integer|exists:processing_times,id',
             'processing_times.*.details' => 'nullable|string',
             'processing_times.*.time'    => 'nullable|string|max:255',
 
+            // 3. Delivery Details
             'delivery_details'                 => 'nullable|array',
+            'delivery_details.*.id'            => 'nullable|integer|exists:delivery_details,id',
             'delivery_details.*.delivery_type' => 'required_with:delivery_details|string',
             'delivery_details.*.details'       => 'required_with:delivery_details|string',
             'delivery_details.*.price'         => 'required_with:delivery_details|numeric',
 
+            // 4. Questionaries
             'questions'           => 'nullable|array',
+            'questions.*.id'      => 'nullable|integer|exists:questionaries,id',
             'questions.*.name'    => 'required_with:questions|string',
             'questions.*.type'    => 'required_with:questions|in:textbox,inputfield,dropdown,checkbox',
             'questions.*.options' => 'nullable|json',
 
+            // 5. Required Documents
             'required_documents'         => 'nullable|array',
+            'required_documents.*.id'    => 'nullable|integer|exists:required_documents,id',
             'required_documents.*.title' => 'required_with:required_documents|string',
         ]);
 
         try {
-            DB::transaction(function () use ($service, $validated, $request) {
+            DB::transaction(function () use ($service, $request, $validated) {
                 
                 // A. Update Main Service Data
-                // verify only the fields present in the request are updated
+                // Only updates fields provided in the request
                 $service->update($request->only([
                     'category_id', 'title', 'subtitle', 'order_type', 'price', 'description'
                 ]));
 
-                // B. Update Relations
-                // The logic: If the array is present in the request, we delete old ones and create new ones.
-                
-                // 1. Included Services
+                /**
+                 * Helper Function for "Smart Upsert"
+                 * * @param string $relationName (The method name in Service Model)
+                 * @param array $items (The data array from request)
+                 */
+                $syncRelation = function($relationName, $items) use ($service) {
+                    if (is_null($items)) return; // If key not sent, do nothing
+
+                    // 1. Identify IDs to Keep
+                    // Collect all IDs present in the request. Any ID in DB but NOT here will be deleted.
+                    $keepIds = collect($items)->pluck('id')->filter()->toArray();
+
+                    // 2. Delete Missing Rows
+                    $service->{$relationName}()->whereNotIn('id', $keepIds)->delete();
+
+                    // 3. Update or Create Rows
+                    foreach ($items as $item) {
+                        $service->{$relationName}()->updateOrCreate(
+                            ['id' => $item['id'] ?? null], // Search by ID (if null, it creates)
+                            $item // Data to save
+                        );
+                    }
+                };
+
+                // B. Apply Sync to All Relations
+                // We check $request->has() so we don't accidentally wipe data if the array wasn't sent at all.
                 if ($request->has('included_services')) {
-                    $service->includedServices()->delete(); // Wipe old
-                    if (!empty($validated['included_services'])) {
-                        $service->includedServices()->createMany($validated['included_services']); // Create new
-                    }
+                    $syncRelation('includedServices', $validated['included_services'] ?? []);
                 }
 
-                // 2. Processing Times
                 if ($request->has('processing_times')) {
-                    $service->processingTimes()->delete();
-                    if (!empty($validated['processing_times'])) {
-                        $service->processingTimes()->createMany($validated['processing_times']);
-                    }
+                    $syncRelation('processingTimes', $validated['processing_times'] ?? []);
                 }
-
-                // 3. Delivery Details
+                
                 if ($request->has('delivery_details')) {
-                    $service->deliveryDetails()->delete();
-                    if (!empty($validated['delivery_details'])) {
-                        $service->deliveryDetails()->createMany($validated['delivery_details']);
-                    }
+                    $syncRelation('deliveryDetails', $validated['delivery_details'] ?? []);
                 }
 
-                // 4. Questionaries
                 if ($request->has('questions')) {
-                    $service->questionaries()->delete();
-                    if (!empty($validated['questions'])) {
-                        $service->questionaries()->createMany($validated['questions']);
-                    }
+                    $syncRelation('questionaries', $validated['questions'] ?? []);
                 }
 
-                // 5. Required Documents
                 if ($request->has('required_documents')) {
-                    $service->requiredDocuments()->delete();
-                    if (!empty($validated['required_documents'])) {
-                        $service->requiredDocuments()->createMany($validated['required_documents']);
-                    }
+                    $syncRelation('requiredDocuments', $validated['required_documents'] ?? []);
                 }
             });
 
-            // Refresh the model to get the new data from DB
+            // Refresh model to get updated relations
             return response()->json([
                 'status' => true,
                 'message' => 'Service updated successfully!',
@@ -229,9 +239,9 @@ class ServiceController extends Controller
         }
     }
 
-    public function deleteService($id)
+    public function deleteService(Service $service)
     {
-        $service = Service::findOrFail($id);
+        $service = Service::findOrFail($service->id);
 
         if (! $service) {
             return response()->json([
@@ -271,6 +281,30 @@ class ServiceController extends Controller
             'status' => true,
             'message' => 'Services retrieved successfully!',
             'data'    => $services,
+        ], 200);
+    }
+
+    public function serviceDetails(Service $service)
+    {
+        $service = Service::with([
+            'includedServices', 
+            'processingTimes', 
+            'deliveryDetails', 
+            'questionaries', 
+            'requiredDocuments'
+        ])->find($service->id);
+
+        if (! $service) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Service not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Service details retrieved successfully!',
+            'data'    => $service,
         ], 200);
     }
 }

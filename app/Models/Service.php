@@ -14,6 +14,10 @@ class Service extends Model
         'description',
     ] ;
 
+    public function category() {
+        return $this->belongsTo(Category::class,'category_id');
+    }
+
     public function includedServices() {
         return $this->hasMany(IncludedService::class);
     }

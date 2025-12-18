@@ -200,7 +200,7 @@ class QuoteController extends Controller
         
     // }
 
-    public function deleteQuote(Request $request, Quote $quote)
+    public function deleteQuote(Quote $quote)
     {
         try {
             $quote = Quote::findOrFail($quote->id);
@@ -233,4 +233,45 @@ class QuoteController extends Controller
             ], 500);
         }
     }
+
+    public function quoteDetails(Quote $quote)
+    {
+        try {
+            $quote = Quote::with(['user', 'customQuote', 'serviceQuote.answer', 'serviceQuote.service'])->findOrFail($quote->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quote fetched successfully',
+                'data'    => $quote
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch quote', 
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function listQuotes()
+    {
+        try {
+            $quotes = Quote::with(['user', 'customQuote', 'serviceQuote.service.category'])->paginate(10);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotes fetched successfully',
+                'data'    => $quotes
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch quotes', 
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+    
 }
