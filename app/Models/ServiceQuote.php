@@ -9,11 +9,21 @@ class ServiceQuote extends Model
     protected $fillable = [
         'quote_id',
         'service_id',
+        'delivery_details_ids',
     ];
 
     public function quote()
     {
         return $this->belongsTo(Quote::class);
+    }
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function deliveryDetails()
+    {
+        return $this->hasMany(DeliveryDetail::class, 'service_quote_id');
     }
 
     public function answer()

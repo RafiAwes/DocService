@@ -184,7 +184,8 @@ class authController extends Controller
         
         // CHANGED: Generate 6-character token (Alphanumeric: a-z, A-Z, 0-9)
         // If you want ONLY uppercase and numbers (cleaner for users), use: strtoupper(Str::random(6))
-        $resetToken = Str::random(6);
+        // $resetToken = Str::random(6);
+        $resetToken = rand(100000, 999999);
         
         // Set expiration time (60 minutes from now)
         $expiresAt = Carbon::now()->addMinutes(10);

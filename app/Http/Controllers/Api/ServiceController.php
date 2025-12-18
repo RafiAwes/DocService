@@ -114,10 +114,10 @@ class ServiceController extends Controller
     /**
      * Update the specified service and its relations.
      */
-    public function updateService(Request $request, $id)
+    public function updateService(Request $request, Service $service)
     {
         // 1. Find the service first (fail fast if not found)
-        $service = Service::findOrFail($id);
+        // $service = Service::findOrFail($id);
 
         // 2. Validate (Similar to create, but we can make top-level fields optional if using PATCH logic)
         // Note: For a full PUT update, we usually expect all data. 
@@ -255,6 +255,23 @@ class ServiceController extends Controller
                 'error'   => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function serviceList()
+    {
+        $services = Service::with([
+            'includedServices', 
+            'processingTimes', 
+            'deliveryDetails', 
+            'questionaries', 
+            'requiredDocuments'
+        ])->paginate(10);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Services retrieved successfully!',
+            'data'    => $services,
+        ], 200);
     }
 }
 

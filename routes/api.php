@@ -29,20 +29,27 @@ Route::group(['controller' => authController::class], function () {
     Route::post('/password/reset', 'resetPassword');
     Route::post('/password/change', 'changePassword');
 });
+
+Route::get('/service/list',[ServiceController::class, 'serviceList']);
+
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [authController::class, 'logout']);
+    Route::get('list/categories',[CategoryController::class, 'listCategories']);
+    Route::get('category/details/{category}',[CategoryController::class, 'categoryDetails']);
 });
 
 
 Route::group (['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], function () {
     Route::group(['controller' => CategoryController::class], function () {
         Route::post('add/category','createCategory');
+        Route::put('edit/category/{category}','editCategory');
+        Route::delete('delete/category/{category}','deleteCategory');
     });
 
     Route::group(['controller' => ServiceController::class], function () {
         Route::post('create/service','createService');
-        Route::put('update/service/{id}','updateService');
-        Route::delete('delete/service/{id}','deleteService');
+        Route::put('update/service/{service}','updateService');
+        Route::delete('delete/service/{service}','deleteService');
     });
 });
 

@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use App\Http\Resources\CategoryResource;
 
 class CategoryController extends Controller
 {
@@ -36,14 +38,14 @@ class CategoryController extends Controller
         $category = new Category();
         $category->name = $data['name'];
         if ($imageName) {
-            $category->image = $imageName;
+            $category->image = 'images/category/'.$imageName;
         }
         $category->save();
 
-        return response()->json([
+        return CategoryResource::make($category)->additional([
+            'status' => true,
             'message' => 'Category created successfully',
-            'category' => $category,
-        ], 201);
+        ]);
       
     }
 
@@ -63,14 +65,14 @@ class CategoryController extends Controller
         // processing image to upload
         if ($request->hasFile('image')) 
         {
-            // delete old image if exists
             if ($category->image && File::exists(public_path('images/category/'.$category->image))) {
                 File::delete(public_path('images/category/'.$category->image));
             }
 
             $imageName = time().'.'.$request->image->getClientOriginalExtension();
             $request->image->move(public_path('images/category'), $imageName);
-            $category->image = $imageName;
+            $category->image = 'images/category/'.$imageName;
+            // $category->image = 'images/category/'. $imageName;
         }
 
         if (isset($data['name'])) {
@@ -78,10 +80,10 @@ class CategoryController extends Controller
         }
         $category->save();
 
-        return response()->json([
+        return CategoryResource::make($category)->additional([
+            'status' => true,
             'message' => 'Category updated successfully',
-            'category' => $category,
-        ], 200);
+        ]);
     }
 
     public function deleteCategory(Category $category)
@@ -94,7 +96,32 @@ class CategoryController extends Controller
         $category->delete();
 
         return response()->json([
+            'status'=> true,
             'message' => 'Category deleted successfully',
         ], 200);
+    }
+
+    public function listCategories()
+    {
+        $categories = Category::orderBy('created_at', 'desc')->paginate(10);
+        if(!$categories || $categories->isEmpty()){
+            return response()->json([
+                'status'=> false,
+                'message' => 'No categories found',
+            ], 404);
+        }
+        return CategoryResource::collection($categories)->additional([
+            'status' => true,
+            'message' => 'Categories retrieved successfully',
+        ]);
+    }
+
+    public function categoryDetails(Category $category)
+    {
+        $category = Category::find($category->id);
+        return CategoryResource::make($category)->additional([
+            'status' => true,
+            'message' => 'Category details retrieved successfully',
+        ]);
     }
 }
