@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\News;
 use Illuminate\Http\Request;
+use App\Http\Resources\NewsResource;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\File;
 
 class NewsController extends Controller
 {
@@ -16,20 +18,87 @@ class NewsController extends Controller
             'image' => 'nullable|image|max:2048',
         ]);
 
-        if (!File::exists('images/news')) {
-            File::makeDirectory('images/news', 0777, true, true);
+        // ensure images directory exists
+        $imagesDir = public_path('images/news');
+        if (!File::exists($imagesDir)) {
+            File::makeDirectory($imagesDir, 0777, true, true);
         }
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('news_images', 'public');
-            $validatedData['image'] = $path;
+            $image = $request->file('image');
+            $imageName = time() . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $image->getClientOriginalName());
+            $image->move($imagesDir, $imageName);
+            $validatedData['image'] = $imageName;
         }
 
         $news = News::create($validatedData);
 
-        return response()->json([
+        return NewsResource::make($news)->additional([
+            'status' => true,
             'message' => 'News item created successfully',
-            'data' => $news,
-        ], 201);
+        ]);
+    }
+
+    public function updateNews(Request $request, News $news)
+    {
+        $validatedData = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|required|string',
+            'image' => 'nullable|image|max:2048',
+        ]);
+
+        // handle image replacement
+        if ($request->hasFile('image')) {
+            $imagesDir = public_path('images/news');
+            if (!File::exists($imagesDir)) {
+                File::makeDirectory($imagesDir, 0777, true, true);
+            }
+
+            // delete old image file if present
+            if ($news->image && File::exists(public_path($news->image))) {
+                File::delete(public_path($news->image));
+            }
+
+            $image = $request->file('image');
+            $imageName = time() . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $image->getClientOriginalName());
+            $image->move($imagesDir, $imageName);
+            $validatedData['image'] = $imageName;
+        }
+
+        $news->update($validatedData);
+
+        return NewsResource::make($news)->additional([
+            'status' => true,
+            'message' => 'News item updated successfully',
+        ]);
+    }
+
+    public function deleteNews(News $news)
+    {
+        if ($news->image && File::exists(public_path($news->image))) {
+            File::delete(public_path($news->image));
+        }
+        $news->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'News item deleted successfully',
+        ], 200);
+    }
+
+    public function listNews()
+    {
+        $newsItems = News::all();
+        return response()->json([
+            'data' => NewsResource::collection($newsItems),
+        ], 200);
+    }
+
+    public function newsDetails(News $news)
+    {
+        return NewsResource::make($news)->additional([
+            'status' => true,
+            'message' => 'News item details retrieved successfully',
+        ]   );
     }
 }

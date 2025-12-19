@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\authController;
+use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CategoryController;
@@ -64,6 +65,21 @@ Route::group(['middleware'=> ['auth:sanctum','user'],'prefix' => 'user'], functi
     Route::group(['controller' => QuoteController::class], function () {
         Route::post('create/quote','createQuote');
     });
+});
+
+
+// News routes
+
+
+// public: list and details
+Route::get('/news', [NewsController::class, 'listNews']);
+Route::get('/news/{news}', [NewsController::class, 'newsDetails']);
+
+// admin: create, update, delete
+Route::group (['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], function () {
+    Route::post('create/news', [NewsController::class, 'createNews']);
+    Route::put('update/news/{news}', [NewsController::class, 'updateNews']);
+    Route::delete('delete/news/{news}', [NewsController::class, 'deleteNews']);
 });
 
 

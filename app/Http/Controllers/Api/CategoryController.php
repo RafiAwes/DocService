@@ -89,8 +89,8 @@ class CategoryController extends Controller
     public function deleteCategory(Category $category)
     {
         // delete image if exists
-        if ($category->image && File::exists(public_path('images/category/'.$category->image))) {
-            File::delete(public_path('images/category/'.$category->image));
+        if ($category->image && File::exists(public_path($category->image))) {
+            File::delete(public_path($category->image));
         }
 
         $category->delete();
