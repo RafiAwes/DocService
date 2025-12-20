@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\StripeWebhookController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -34,10 +36,16 @@ Route::group(['controller' => authController::class], function () {
 Route::get('/service/list',[ServiceController::class, 'serviceList']);
 Route::get('/service/details/{service}',[ServiceController::class,'serviceDetails']);
 
+// stripe payment
+Route::post('stripe/webhook', [StripeWebhookController::class,'handleWebhook']);
+
+
+
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [authController::class, 'logout']);
     Route::get('list/categories',[CategoryController::class, 'listCategories']);
     Route::get('category/details/{category}',[CategoryController::class, 'categoryDetails']);
+    Route::post('/checkout/process', [CheckoutController::class, 'processCheckout']);
 });
 
 

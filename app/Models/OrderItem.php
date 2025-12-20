@@ -8,9 +8,10 @@ class OrderItem extends Model
 {
     protected $fillable = [
         'order_id',
-        'product_id',
+        'service_id',
         'quantity',
         'price',
+        'subtotal',
     ];
     protected $casts = [
         'price' => 'decimal:2',
@@ -22,14 +23,19 @@ class OrderItem extends Model
         return $this->belongsTo(Order::class);
     }
 
-    public function servie()
+    public function service()
     {
-        return $this->hasMany(Service::class);
+        return $this->belongsTo(Service::class);
     }
 
     public function getTotalPriceAttribute()
     {
         return $this->quantity * $this->price;
+    }
+
+    public function deliveryDetails()
+    {
+        return $this->belongsToMany(DeliveryDetails::class, 'order_item_deliveries', 'order_item_id', 'delivery_detail_id');
     }
 
 }

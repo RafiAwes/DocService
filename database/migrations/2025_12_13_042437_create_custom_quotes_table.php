@@ -30,6 +30,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('custom_quotes', function (Blueprint $table) {
+            $table->dropForeign(['quote_id']);
+        });
         Schema::dropIfExists('custom_quotes');
     }
 };

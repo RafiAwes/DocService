@@ -29,6 +29,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('answers', function (Blueprint $table) {
+            $table->dropForeign(['service_quote_id']);
+        });
         Schema::dropIfExists('answers');
     }
 };

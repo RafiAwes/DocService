@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained();
-            $table->string('stripe_payment_id')->nullable();
-            $table->decimal('total_amount', 10, 2);
-            $table->string('status')->default('pending');
+            $table->string('stripe_payment_id')->nullable(); 
+            $table->decimal('total_amount', 12, 2); 
+            $table->string('status')->default('pending'); // pending, paid, failed
+            $table->boolean('is_south_africa')->default(false); // The new flag
             $table->timestamps();
         });
     }
@@ -26,6 +27,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropForeign(['user_id']);
+        });
         Schema::dropIfExists('orders');
     }
 };
