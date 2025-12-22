@@ -2,111 +2,179 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\User;
-use App\Models\Order;
-use App\Model\Service;
-use App\Models\OrderItem;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Service;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Services\StripePaymentService;
-use Illuminate\Support\Facades\Validator;
-// use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\DB;
+use Stripe\PaymentIntent;
+use Stripe\Stripe;
+
+// Optional if you still use the service, but we are using direct Stripe calls here for simplicity as requested.
 
 class CheckoutController extends Controller
 {
-    protected $payementService;
-
-    public function __construct(StripePaymentService $payementService)
+    public function __construct()
     {
-        $this->payementService = $payementService;
+        // Set Stripe API Key globally for this controller
+        Stripe::setApiKey(config('services.stripe.secret') ?? env('STRIPE_SECRET_KEY'));
     }
 
-    public function placeOrder(Request $request)
+    /**
+     * STEP 1: Initiate Checkout
+     * Validates items, calculates total securely, creates pending order, returns Client Secret.
+     */
+    public function initiateCheckout(Request $request)
     {
         $request->validate([
             'is_south_africa' => 'required|boolean',
-            'items'           => 'required|array|min:1',
-            'items.*.service_id'   => 'required|exists:services,id',
-            'items.*.quantity'     => 'required|integer|min:1',
-            // delivery_ids should be an array of integers (IDs)
-            'items.*.delivery_ids' => 'nullable|array', 
-            'items.*.delivery_ids.*' => 'exists:delivery_options,id',
+            'items' => 'required|array|min:1',
+            'items.*.service_id' => 'required|exists:services,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.delivery_ids' => 'nullable|array',
+            'items.*.delivery_ids.*' => 'exists:delivery_details,id', // Validate delivery IDs exist
         ]);
 
         $user = Auth::user();
-        $inputItems = $request->input('items');
-
-        DB::beginTransaction();
 
         try {
-            $totalAmount = 0;
-            $orderItemsData = [];
+            return DB::transaction(function () use ($request, $user) {
 
-            foreach ($inputItems as $item) {
-                $service    = Service::findOrFail($item['service_id']);
-                $quantity   = $item['quantity'];
-                $price      = $service->price;
-                $subtotal   = $price * $quantity;
-                $totalAmount += $subtotal;
+                // 1. Calculate Total (Server Side Security)
+                $totalAmount = 0;
+                $orderItemsData = [];
 
-                // Prepare data for later insertion
-                $orderItemsData[] = [
-                    'service_obj'   => $service, // Keep reference for later
-                    'quantity'      => $quantity,
-                    'price'         => $price,
-                    'subtotal'      => $subtotal,
-                    'delivery_ids'  => $item['delivery_ids'] ?? [],
-                ];
-            }
-            // Create Stripe Payment Intent    
-            $paymentIntent = $this->payementService->createPaymentIntent($totalAmount, 'usd', [
-                'user_id'=> $user->id,
-                'email'  => $user->email,
-                'is_south_africa' => $request->is_south_africa? 'true' : 'false',
-            ]);
+                foreach ($request->items as $item) {
+                    $service = Service::findOrFail($item['service_id']);
 
-            //Create the order
-            $order = Order::create([
-                'user_id'           => $user->id,
-                'total_amount'      => $totalAmount,
-                'is_south_africa'   => $request->is_south_africa,
-                'stripe_payment_id' => $paymentIntent->id,
-                'status'            => 'pending',
-            ]);
-            //Create Items and Attach Delivery Options
-            foreach ($orderItemsData as $data) {
-                $orderItem = OrderItem::create([
-                    'order_id'   => $order->id,
-                    'service_id' => $data['service_obj']->id,
-                    'quantity'   => $data['quantity'],
-                    'price'      => $data['price'],
-                    'subtotal'   => $data['subtotal'],
+                    // Use price from DB, ignore frontend price
+                    $subtotal = $service->price * $item['quantity'];
+                    $totalAmount += $subtotal;
+
+                    $orderItemsData[] = [
+                        'service' => $service,
+                        'quantity' => $item['quantity'],
+                        'subtotal' => $subtotal,
+                        'delivery_ids' => $item['delivery_ids'] ?? [],
+                    ];
+                }
+
+                // 2. Create Stripe Intent (The "Handshake")
+                $paymentIntent = PaymentIntent::create([
+                    'amount' => round($totalAmount * 100), // Convert to cents
+                    'currency' => 'usd',
+                    'metadata' => [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                    ],
+                    'payment_method'=> 'pm_card_visa',
+                    'confirm'=> true,
+                    'return_url' => 'https://checkout.stripe.dev/success',
+                    'automatic_payment_methods' => ['enabled' => true, 'allow_redirects'=> 'never'],
                 ]);
 
-                // Attach the delivery IDs to this specific item
-                if (!empty($data['delivery_ids'])) {
-                    $orderItem->deliveryOptions()->attach($data['delivery_ids']);
+                // 3. Create Pending Order in DB
+                $order = Order::create([
+                    'user_id' => $user->id,
+                    'total_amount' => $totalAmount,
+                    'is_south_africa' => $request->is_south_africa,
+                    'stripe_payment_id' => $paymentIntent->id, // Store this to verify later
+                    'status' => 'pending',
+                ]);
+
+                // 4. Save Order Items & Delivery Options
+                foreach ($orderItemsData as $data) {
+                    $orderItem = OrderItem::create([
+                        'order_id' => $order->id,
+                        'service_id' => $data['service']->id,
+                        'quantity' => $data['quantity'],
+                        'price' => $data['service']->price,
+                        'subtotal' => $data['subtotal'],
+                    ]);
+
+                    // Attach delivery options (Many-to-Many)
+                    if (! empty($data['delivery_ids'])) {
+                        // Ensure your OrderItem model has 'deliveryOptions()' method (not 'deliveryOptionss')
+                        $orderItem->deliveryOptions()->attach($data['delivery_ids']);
+                    }
                 }
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Checkout initiated successfully',
+                    'data' => [
+                        'order_id' => $order->id,
+                        'total_amount' => $totalAmount,
+                        'client_secret' => $paymentIntent->client_secret, // Frontend needs this for Stripe.js
+                        'stripe_payment_id' => $paymentIntent->id, // Useful for your testing
+                    ],
+                ], 201);
+            });
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Checkout initiation failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * STEP 2: Confirm Payment
+     * Frontend calls this after Stripe processing is done to update DB status.
+     */
+    public function confirmPayment(Request $request)
+    {
+        $request->validate([
+            'payment_intent_id' => 'required|string',
+        ]);
+
+        try {
+            // 1. Find the local order safely
+            $order = Order::where('stripe_payment_id', $request->payment_intent_id)->first();
+
+            if (! $order) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Order not found. Invalid Payment Intent ID.',
+                ], 404);
             }
 
-            DB::commit();
-            return response()->json([
-                'status' => true,
-                'message' => 'Order created successfully',
-                'data' => [
-                    'order_id'      => $order->id,
-                    'total_amount'  => $totalAmount,
-                    'client_secret' => $paymentIntent->client_secret, // Required by frontend Stripe.js
-                ]
-            ], 201);
+            if ($order->status === 'paid') {
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Order is already marked as paid.',
+                ]);
+            }
+
+            // 2. SECURITY CHECK: Retrieve status from Stripe
+            $intent = PaymentIntent::retrieve($request->payment_intent_id);
+
+            if ($intent->status === 'succeeded') {
+                // 3. Mark as Paid
+                $order->update(['status' => 'paid']);
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Payment verified and order confirmed.',
+                    'data' => $order,
+                ]);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Payment not successful yet.',
+                    'stripe_status' => $intent->status,
+                ], 400);
+            }
+
         } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Order placement failed: ' . $e->getMessage());
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to place order. Please try again later.',
-                'error' => $e->getMessage()
+                'status' => false,
+                'message' => 'Confirmation failed',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

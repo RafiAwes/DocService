@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
+use App\Http\Resources\NewsResource;
 use App\Models\News;
 use Illuminate\Http\Request;
-use App\Http\Resources\NewsResource;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\File;
 
 class NewsController extends Controller
@@ -20,13 +20,13 @@ class NewsController extends Controller
 
         // ensure images directory exists
         $imagesDir = public_path('images/news');
-        if (!File::exists($imagesDir)) {
+        if (! File::exists($imagesDir)) {
             File::makeDirectory($imagesDir, 0777, true, true);
         }
 
         if ($request->hasFile('image')) {
             $image = $request->file('image');
-            $imageName = time() . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $image->getClientOriginalName());
+            $imageName = time().'_'.preg_replace('/[^A-Za-z0-9_.-]/', '_', $image->getClientOriginalName());
             $image->move($imagesDir, $imageName);
             $validatedData['image'] = $imageName;
         }
@@ -50,7 +50,7 @@ class NewsController extends Controller
         // handle image replacement
         if ($request->hasFile('image')) {
             $imagesDir = public_path('images/news');
-            if (!File::exists($imagesDir)) {
+            if (! File::exists($imagesDir)) {
                 File::makeDirectory($imagesDir, 0777, true, true);
             }
 
@@ -60,7 +60,7 @@ class NewsController extends Controller
             }
 
             $image = $request->file('image');
-            $imageName = time() . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $image->getClientOriginalName());
+            $imageName = time().'_'.preg_replace('/[^A-Za-z0-9_.-]/', '_', $image->getClientOriginalName());
             $image->move($imagesDir, $imageName);
             $validatedData['image'] = $imageName;
         }
@@ -86,12 +86,14 @@ class NewsController extends Controller
         ], 200);
     }
 
-    public function listNews()
+    public function listNews(Request $request)
     {
-        $newsItems = News::all();
-        return response()->json([
-            'data' => NewsResource::collection($newsItems),
-        ], 200);
+        $perPage = $request->query('per_page', 10);
+        $newsItems = News::orderBy('id', 'desc')->paginate($perPage);
+        return NewsResource::collection($newsItems)->additional([
+            'status' => true,
+            'message' => 'News items retrieved successfully',
+        ]);
     }
 
     public function newsDetails(News $news)
@@ -99,6 +101,6 @@ class NewsController extends Controller
         return NewsResource::make($news)->additional([
             'status' => true,
             'message' => 'News item details retrieved successfully',
-        ]   );
+        ]);
     }
 }

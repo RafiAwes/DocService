@@ -33,7 +33,7 @@ class OrderItem extends Model
         return $this->quantity * $this->price;
     }
 
-    public function deliveryDetails()
+    public function deliveryOptions()
     {
         return $this->belongsToMany(DeliveryDetails::class, 'order_item_deliveries', 'order_item_id', 'delivery_detail_id');
     }
