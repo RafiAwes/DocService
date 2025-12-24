@@ -237,17 +237,17 @@ class QuoteController extends Controller
     public function quoteDetails(Quote $quote)
     {
         try {
-            $quote = Quote::with(['user', 'customQuote', 'serviceQuote.answer', 'serviceQuote.service'])->findOrFail($quote->id);
+            $quote = Quote::with(['user', 'customQuote', 'serviceQuote.answer', 'serviceQuote.service', 'serviceQuote.service.category'])->findOrFail($quote->id);
 
             return response()->json([
-                'success' => true,
+                'status' => true,
                 'message' => 'Quote fetched successfully',
                 'data'    => $quote
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => false,
                 'message' => 'Failed to fetch quote', 
                 'error'   => $e->getMessage()
             ], 500);
@@ -257,17 +257,18 @@ class QuoteController extends Controller
     public function listQuotes()
     {
         try {
-            $quotes = Quote::with(['user', 'customQuote', 'serviceQuote.service.category'])->paginate(10);
+            $perPage = request()->query('per_page', 10);
+            $quotes = Quote::with(['user', 'customQuote','serviceQuote', 'serviceQuote.service', 'serviceQuote.service.category'])->paginate($perPage);
 
             return response()->json([
-                'success' => true,
+                'status' => true,
                 'message' => 'Quotes fetched successfully',
                 'data'    => $quotes
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => false,
                 'message' => 'Failed to fetch quotes', 
                 'error'   => $e->getMessage()
             ], 500);

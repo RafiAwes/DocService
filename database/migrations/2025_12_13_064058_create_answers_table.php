@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('answers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('service_quote_id')->constrained('service_quotes')->cascadeOnDelete();
+            $table->foreignId('service_quote_id')->nullable()->constrained('service_quotes')->cascadeOnDelete();
             $table->json('delivery_details_ids')->nullable(); 
             $table->boolean('south_african')->default(false);
             $table->integer('age')->nullable();
@@ -29,9 +29,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('answers', function (Blueprint $table) {
-            $table->dropForeign(['service_quote_id']);
-        });
+        // Dropping the table will automatically remove its foreign keys.
         Schema::dropIfExists('answers');
     }
 };

@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('order_items', function (Blueprint $table) {
+        Schema::create('transactions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('order_id')->constrained()->onDelete('cascade');
-            $table->foreignId('service_id')->constrained();
-            $table->integer('quantity');
-            $table->decimal('price', 12, 2); // Unit price at time of purchase
-            $table->decimal('subtotal', 12, 2); // quantity * price
+            $table->decimal('amount', 10, 2);
+            $table->string('payment_intent_id');
             $table->timestamps();
         });
     }
@@ -27,7 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Dropping the table will automatically remove its FKs.
-        Schema::dropIfExists('order_items');
+        Schema::dropIfExists('transactions');
     }
 };

@@ -101,9 +101,20 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    public function listCategories()
+    public function listCategories(Request $request)
     {
-        $categories = Category::orderBy('created_at', 'desc')->paginate(10);
+        $query = Category::query();
+
+         // Search functionality
+    
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            // Using 'like' allows for partial matches (e.g. searching "839" finds "839201")
+            $query->where('name', 'like', "%{$searchTerm}%");
+        }
+
+        $perPage = request()->query('per_page', 10);
+        $categories = $query->orderBy('created_at', 'desc')->paginate($perPage);
         if(!$categories || $categories->isEmpty()){
             return response()->json([
                 'status'=> false,

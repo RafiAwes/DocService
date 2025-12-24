@@ -267,18 +267,32 @@ class ServiceController extends Controller
         }
     }
 
-    public function serviceList()
+    public function serviceList(Request $request)
     {
-        $services = Service::with([
+        $query = Service::query();
+
+        if ($request->filled('search')) {
+            // 1. Remove accidental spaces from start/end
+            $searchTerm = trim($request->search);
+            
+            // 2. Use LOWER() for case-insensitive matching
+            // This works on MySQL, PostgreSQL, and SQLite safely
+            $query->whereRaw('LOWER(title) LIKE ?', ['%' . strtolower($searchTerm) . '%']);
+        }
+
+        $perPage = request()->query('per_page', 10);
+        
+        $services = $query->with([
             'includedServices', 
             'processingTimes', 
             'deliveryDetails', 
             'questionaries', 
-            'requiredDocuments'
-        ])->paginate(10);
+            'requiredDocuments',
+            'category'
+        ])->orderBy('created_at', 'desc')->paginate($perPage);
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'Services retrieved successfully!',
             'data'    => $services,
         ], 200);
