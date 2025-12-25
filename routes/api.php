@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PagesController;
 use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CategoryController;
@@ -38,6 +39,9 @@ Route::group(['controller' => authController::class], function () {
     Route::post('/password/change', 'changePassword');
 });
 
+// sending message from user
+    Route::post('/send/message', [MessageController::class, 'sendMessage']);
+
 Route::group(['controller' => ServiceController::class], function () {
     Route::get('/service/list', 'serviceList');
     Route::get('/service/details/{service}', 'serviceDetails');
@@ -65,7 +69,7 @@ Route::post('/auth/google', [SocialAuthController::class, 'googleLogin']);
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [authController::class, 'logout']);
-   
+
 
     Route::group(['controller' => ProfileController::class], function () {
         // updating profile
@@ -81,7 +85,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
 
     // Route::post('/pages/save', [PagesController::class, 'savePage']);
-    
+
     Route::get('category/details/{category}', [CategoryController::class, 'categoryDetails']);
     Route::group(['controller' => CheckoutController::class], function () {
 
@@ -99,8 +103,8 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
         Route::get('dashboard', 'index');
         Route::get('dashboard/chart-data', 'getChartData');
     });
-    
-    
+
+
     Route::group(['controller' => CategoryController::class], function () {
         Route::post('add/category', 'createCategory');
         Route::put('edit/category/{category}', 'editCategory');
@@ -137,8 +141,10 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
         Route::get('/completed-orders', 'completedOrders');
     });
 
-    
-    
+    Route::get('/messages', [MessageController::class, 'index']);
+
+
+
 });
 
 Route::group(['middleware' => ['auth:sanctum', 'user'], 'prefix' => 'user'], function () {
