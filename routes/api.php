@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\StripeWebhookController;
-use App\Http\Controllers\Api\AdminDashboardController;
+// use App\Http\Controllers\Api\AdminDashboardController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
