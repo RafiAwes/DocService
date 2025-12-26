@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str; // Import File facade for public folder operations
@@ -77,7 +78,7 @@ class ProfileController extends Controller
     public function updateProfilePicture(Request $request)
     {
         $request->validate([
-            'profile_pic' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_pic' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:10240',
         ]);
 
         $user = Auth::user();

@@ -39,6 +39,8 @@ class Order extends Model
         return $slug;
     }
 
-     
+     public function rating(){
+        return $this->hasOne(Rating::class);
+     }
 
 }

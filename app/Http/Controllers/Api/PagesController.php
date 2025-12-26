@@ -17,7 +17,7 @@ class PagesController extends Controller
     
     public function show($key)
     {
-        $page = Pages::where('key', $key)->first();
+        $page = Pages::where('key', $request->key)->first();
 
         if (!$page) {
             return response()->json([

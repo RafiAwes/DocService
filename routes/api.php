@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RatingController;
 use App\Http\Controllers\Api\authController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
@@ -148,6 +149,9 @@ Route::group(['middleware' => ['auth:sanctum', 'user'], 'prefix' => 'user'], fun
     // User Routes
     Route::get('/my-orders', [OrderController::class, 'userOrders']);
     Route::get('/my-orders/{id}', [OrderController::class, 'details']);
+
+    Route::post('rating', [RatingController::class, 'store']);
+    Route::get('transactions-history', [OrderController::class, 'transactionsHistory']);
 });
 
 // News routes

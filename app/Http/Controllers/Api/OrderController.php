@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Order;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -20,11 +21,15 @@ class OrderController extends Controller
             $user = Auth::user();
 
             $perPage = $request->query('per_page', 10);
+            $status = $request->query('status');
 
             // Fetch orders for THIS user only, ordered by newest first
-            $orders = Order::with(['items.service', 'items.service.category', 'items.deliveryOptions'])
+            $orders = Order::with(['items.service', 'items.service.category', 'items.deliveryOptions', 'rating'])
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
+                ->when($status, function ($query) use ($status) {
+                    $query->where('status', $status);
+                })
                 ->paginate($perPage); // Show 10 per page
 
             return response()->json([
@@ -204,5 +209,26 @@ class OrderController extends Controller
     //         'data' => $pendingOrders,
     //     ]);
     // }
+
+
+    public function transactionsHistory(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            $perPage = $request->query('per_page', 10);
+
+            $transactions = Transaction::with('order.items.service')->where('user_id',Auth::user()->id)->latest('id')->paginate($perPage);
+    
+            return response()->json([
+                'status' => true,
+                'message' => 'Transaction history fetched successfully',
+                'data' => $transactions,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 
 }
