@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
@@ -34,4 +35,40 @@ class NotificationController extends Controller
             'message'   => 'All notifications marked as read',
         ]);
     }
+
+    public function markAsRead($id)
+    {
+        $notification = Auth::user()->notifications()->where('id', $id)->first();
+
+        if ($notification) {
+            $notification->markAsRead();
+
+            return response()->json([
+                'status'    => true,
+                'message'   => 'Notification marked as read',
+            ]);
+        } else {
+            return response()->json([
+                'status'    => false,
+                'message'   => 'Notification not found',
+            ], 404);
+        }
+    }
+    /**
+     * Get unread notifications
+     * GET /api/notifications/unread
+     */
+    public function unread()
+    {
+        $user = Auth::user();
+
+        $notifications = $user->unreadNotifications;
+
+        return response()->json([
+            'status'    => true,
+            'message'   => 'Unread notifications fetched successfully',
+            'data'      => $notifications,
+        ]);
+    }
+
 }
