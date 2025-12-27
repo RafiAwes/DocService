@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Answer;
+use App\Models\DeliveryDetails;
 
 class ServiceQuote extends Model
 {
     protected $fillable = [
         'quote_id',
+        'order_id',
         'service_id',
         'delivery_details_ids',
     ];
@@ -25,13 +28,18 @@ class ServiceQuote extends Model
         return $this->belongsTo(Service::class);
     }
 
-    public function deliveryDetails()
+    /**
+     * Get the delivery details for the service quote.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function deliveryDetails(): HasMany
     {
-        return $this->hasMany(DeliveryDetail::class, 'service_quote_id');
+        return $this->hasMany(DeliveryDetails::class, 'service_quote_id', 'id');
     }
 
-    public function answer()
+    public function answers()
     {
-        return $this->hasOne(Answers::class, 'service_quote_id');
+        return $this->hasMany(Answer::class);
     }
 }

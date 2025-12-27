@@ -2,12 +2,14 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\Api\authController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PagesController;
 use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\SubscriberController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ServiceController;
@@ -16,7 +18,7 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\StripeWebhookController;
-// use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\AdminDashboardController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -40,16 +42,19 @@ Route::group(['controller' => authController::class], function () {
     Route::post('/password/change', 'changePassword');
 });
 
-// sending message from user
+    // sending message from user
     Route::post('/send/message', [MessageController::class, 'sendMessage']);
+    Route::get('/testimonials', [HomeController::class, 'testimonials']);
 
 Route::group(['controller' => ServiceController::class], function () {
     Route::get('/service/list', 'serviceList');
     Route::get('/service/details/{service}', 'serviceDetails');
 });
 
+Route::apiResource('subscribers', SubscriberController::class)->only(['index', 'store']);
+
 Route::group(['controller' => PagesController::class], function () {
-    Route::get('/pages/{key}', 'show'); // e.g. /api/pages/terms
+    Route::get('/pages', 'show'); // e.g. /api/pages/terms
     Route::get('/faqs', 'index');
 });
 
@@ -57,7 +62,6 @@ Route::group(['controller' => PagesController::class], function () {
 Route::group(['controller' => CategoryController::class], function () {
     Route::get('list/categories', 'listCategories');
 });
-
 
 //google authentication
 Route::get('/auth/google/redirect/user', [SocialAuthController::class, 'redirectToGoogle'])->middleware(['web']);
@@ -84,6 +88,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     // Notification Center
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    // Route::get('/notifications/unread', [NotificationController::class, 'unread']);
+    Route::post('/notifications/mark-as-read/{id}', [NotificationController::class, 'markAsRead']);
 
     // Route::post('/pages/save', [PagesController::class, 'savePage']);
 
@@ -119,7 +125,8 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
     });
 
     Route::group(['controller' => QuoteController::class], function () {
-        Route::get('quotes/list', 'listQuotes');
+        Route::get('quotes-custom/list', 'customQuoteList');
+        Route::get('quotes-service/list', 'serviceQuoteList');
         Route::get('quote/details/{quote}', 'quoteDetails');
         Route::delete('delete/quote/{quote}', 'deleteQuote');
     });
@@ -150,7 +157,8 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
 
 Route::group(['middleware' => ['auth:sanctum', 'user'], 'prefix' => 'user'], function () {
     Route::group(['controller' => QuoteController::class], function () {
-        Route::post('create/quote', 'createQuote');
+        Route::post('create/custom/quote', 'createCustomQuote');
+        Route::post('create/service/quote', 'createServiceQuote');
     });
     // User Routes
     Route::get('/my-orders', [OrderController::class, 'userOrders']);
