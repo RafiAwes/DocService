@@ -16,7 +16,7 @@ class CategoryController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'image' => 'nullable|image|max:255',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         // image name is set to null initially
@@ -53,7 +53,7 @@ class CategoryController extends Controller
     {
         $data = $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'image' => 'nullable|image|max:255',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         // checking if the directory exists. else it will create the directory

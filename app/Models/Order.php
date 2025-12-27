@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Answers;
+use App\Models\Transaction;
 
 class Order extends Model
 {
     protected $fillable = [
         'user_id',
-        'slug',
+        'orderid',
         'is_south_africa',
         'stripe_payment_id',
         'total_amount',
@@ -27,16 +30,24 @@ class Order extends Model
 
     public function answer()
     {
-        return $this->hasOne(Answers::class);
+        return $this->hasMany(Answers::class);
     }
 
-    public static function generateSlug()
+    /**
+     * Transactions linked to this order.
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public static function generateOrderId()
     {
         do{
-            $slug = random_int(100000, 999999);
-        } while (self::where('slug', $slug)->exists());
+            $orderid = random_int(100000, 999999);
+        } while (self::where('orderid', $orderid)->exists());
 
-        return $slug;
+        return $orderid;
     }
 
      public function rating(){

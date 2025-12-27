@@ -24,7 +24,15 @@ class OrderController extends Controller
             $status = $request->query('status');
 
             // Fetch orders for THIS user only, ordered by newest first
-            $orders = Order::with(['items.service', 'items.service.category', 'items.deliveryOptions', 'rating'])
+            $orders = Order::with([
+                'items.service',
+                'items.service.category',
+                'items.deliveryOptions',
+                'items.answers',
+                'items.answers.questionary',
+                'transactions',
+                'rating'
+            ])
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->when($status, function ($query) use ($status) {
@@ -56,7 +64,7 @@ class OrderController extends Controller
             // We include 'answer' because that contains the user's specific inputs (Age, Docs)
             $query = Order::with([
                 'user',
-                'answer', // The user's submitted answers/docs
+                'answer',
                 'items.service',
                 'items.service.category',
                 'items.service.requiredDocuments',
@@ -64,6 +72,9 @@ class OrderController extends Controller
                 'items.service.includedServices',
                 'items.service.deliveryDetails',
                 'items.deliveryOptions',
+                'items.answers',
+                'items.answers.questionary',
+                'transactions',
             ]);
 
             // 2. SEARCH Logic (Search by Slug)
@@ -114,13 +125,31 @@ class OrderController extends Controller
         try {
             $user = Auth::user();
 
-            $order = Order::with(['user', 'items.service', 'items.service.category', 'items.deliveryOptions'])
-                ->findOrFail($id);
+            // Allow lookup by numeric id or public orderid
+            $order = Order::with([
+                'user',
+                'items.service',
+                'items.service.category',
+                'items.service.requiredDocuments',
+                'items.service.processingTimes',
+                'items.service.includedServices',
+                'items.service.questionaries',
+                'items.service.questionaries.answers',
+                'items.service.deliveryDetails',
+                'items.deliveryOptions',
+                'items.answers',
+                'items.answers.questionary',
+                'transactions',
+            ])
+            ->where(function ($q) use ($id) {
+                $q->where('id', $id)->orWhere('orderid', $id);
+            })
+            ->firstOrFail();
 
             // Security: If not admin, ensure user owns this order
             // (Assuming you have a role/type column, otherwise just check ID)
             if ($user->role !== 'admin' && $order->user_id !== $user->id) {
-                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+                return response()->json(['status' => false, 'message' => 'Unauthorized'], 403);
             }
 
             return response()->json([
@@ -128,8 +157,10 @@ class OrderController extends Controller
                 'data' => $order,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['status' => false, 'message' => 'Order not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['status' => false, 'message' => 'Failed to fetch order', 'error' => $e->getMessage()], 500);
         }
     }
 

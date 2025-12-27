@@ -15,7 +15,7 @@ class NewsController extends Controller
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         // ensure images directory exists
@@ -44,7 +44,7 @@ class NewsController extends Controller
         $validatedData = $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'description' => 'sometimes|required|string',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         // handle image replacement

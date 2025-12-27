@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Answers;
 
 class OrderItem extends Model
 {
@@ -36,6 +38,14 @@ class OrderItem extends Model
     public function deliveryOptions()
     {
         return $this->belongsToMany(DeliveryDetails::class, 'order_item_deliveries', 'order_item_id', 'delivery_detail_id');
+    }
+
+    /**
+     * Answers captured for this order item.
+     */
+    public function answers(): HasMany
+    {
+        return $this->hasMany(Answers::class, 'order_item_id');
     }
 
 }

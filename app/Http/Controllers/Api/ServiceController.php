@@ -41,7 +41,7 @@ class ServiceController extends Controller
             // Relation: Questionaries
             'questions'           => 'nullable|array',
             'questions.*.name'    => 'required_with:questions|string',
-            'questions.*.type'    => 'required_with:questions|in:textbox,inputfield,dropdown,checkbox',
+            'questions.*.type'    => 'required_with:questions|in:Textbox,Input field,Drop down,Checkout',
             'questions.*.options' => 'nullable|json',
 
             // Relation: Required Documents
@@ -152,7 +152,8 @@ class ServiceController extends Controller
             'questions'           => 'nullable|array',
             'questions.*.id'      => 'nullable|integer|exists:questionaries,id',
             'questions.*.name'    => 'required_with:questions|string',
-            'questions.*.type'    => 'required_with:questions|in:textbox,inputfield,dropdown,checkbox',
+            // Align with new types (capitalized with spaces)
+            'questions.*.type'    => 'required_with:questions|in:Textbox,Input field,Drop down,Checkout',
             'questions.*.options' => 'nullable|json',
 
             // 5. Required Documents

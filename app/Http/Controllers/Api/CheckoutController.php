@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use Stripe\PaymentIntent;
@@ -73,23 +74,33 @@ class CheckoutController extends Controller
      */
     public function paymentSuccess(Request $request)
     {
-        // 1. Validation
+        // Normalize JSON-in-form-data (Postman form-data)
+        // foreach (['items', 'answers'] as $key) {
+        //     $val = $request->input($key);
+        //     if (is_string($val)) {
+        //         $decoded = json_decode($val, true);
+        //         if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+        //             $request->merge([$key => $decoded]);
+        //         }
+        //     }
+        // }
+
+        // 1️⃣ Validate
         $request->validate([
             'amount' => 'required',
             'payment_intent_id' => 'required|string',
             'is_south_africa' => 'required|boolean',
 
-            // Items
             'items' => 'required|array|min:1',
             'items.*.service_id' => 'required|exists:services,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.delivery_ids' => 'nullable|array',
 
-            // Dynamic Answers
-            'answers' => 'nullable|array',
-            'answers.*.question_id' => 'required|exists:questionaries,id',
-            'answers.*.value' => 'nullable',
+            'items.*.answers' => 'nullable|array',
+            'items.*.answers.*.question_id' => 'required|exists:questionaries,id',
+            'items.*.answers.*.value' => 'nullable',
         ]);
+       
 
         $user = Auth::user();
         $paymentIntent = PaymentIntent::retrieve($request->payment_intent_id);
@@ -97,7 +108,7 @@ class CheckoutController extends Controller
         try {
             return DB::transaction(function () use ($request, $user, $paymentIntent) {
 
-                // --- A. CREATE ORDER ---
+                // 2️⃣ Create Order
                 $order = Order::create([
                     'user_id' => $user->id,
                     'orderid' => Order::generateOrderId(),
@@ -107,80 +118,53 @@ class CheckoutController extends Controller
                     'status' => 'pending',
                 ]);
 
-                // --- B. PREPARE QUESTIONS DATA ---
-                $questionsData = collect();
-                if ($request->has('answers')) {
-                    $qIds = array_column($request->answers, 'question_id');
-                    $questionsData = Questionaries::whereIn('id', $qIds)->get()->keyBy('id');
-                }
+                $orderItemsByService = [];
 
-                // --- C. LOOP THROUGH ITEMS (SERVICES) ---
-                foreach ($request->items as $itemData) {
-
+                // 3️⃣ Items + Answers
+                foreach ($request->items as $itemIndex => $itemData) {
                     $service = Service::findOrFail($itemData['service_id']);
 
-                    // 1. Create Order Item
-                    $subtotal = $service->price * $itemData['quantity'];
                     $orderItem = OrderItem::create([
                         'order_id' => $order->id,
                         'service_id' => $service->id,
                         'quantity' => $itemData['quantity'],
                         'price' => $service->price,
-                        'subtotal' => $subtotal,
+                        'subtotal' => $service->price * $itemData['quantity'],
                     ]);
 
+                    $orderItemsByService[$service->id] = $orderItem;
+
+                    // Delivery mapping
                     if (! empty($itemData['delivery_ids'])) {
                         $orderItem->deliveryOptions()->attach($itemData['delivery_ids']);
                     }
+                    // Answers for THIS item
+                    if (! empty($itemData['answers'])) {
+                        foreach ($itemData['answers'] as $aIndex => $answer) {
+                            $storedValue = $answer['value'] ?? null;
 
-                    // 2. Create Service Quote (Container for Answers)
-                    // Ensure 'order_id' is in $fillable in ServiceQuote model
-                    $serviceQuote = ServiceQuote::create([
-                        'order_id' => $order->id,
-                        'service_id' => $service->id,
-                        'delivery_details_ids' => $itemData['delivery_ids'] ?? [],
-                    ]);
+                            // FILE?
+                            $fileKey = "items.{$itemIndex}.answers.{$aIndex}.value";
 
-                    // 3. Filter & Save Answers for THIS Service
-                    if ($request->has('answers')) {
-                        foreach ($request->answers as $index => $answerData) {
-                            $qId = $answerData['question_id'];
 
-                            if ($questionsData->has($qId)) {
-                                $questionObj = $questionsData[$qId];
-
-                                // LOGIC CHECK: Does this question belong to the current Service?
-                                if ($questionObj->service_id == $service->id) {
-
-                                    // Handle File Upload vs Text
-                                    $storedValue = null;
-
-                                    if ($questionObj->type === 'file') {
-                                        if ($request->hasFile("answers.{$index}.value")) {
-                                            $file = $request->file("answers.{$index}.value");
-                                            $storedValue = $file->store('documents/orders_dynamic', 'public');
-                                        }
-                                    } else {
-                                        $storedValue = $answerData['value'];
-                                    }
-
-                                    // Create Answer Record
-                                    Answers::create([
-                                        'service_quote_id' => $serviceQuote->id,
-                                        'questionary_id' => $qId,
-                                        'value' => $storedValue,
-                                    ]);
-
-                                    // Log::info("Saved Answer for QID: {$qId}"); // Uncomment to debug
-                                } else {
-                                    // Log::warning("Mismatch: QID {$qId} belongs to Service {$questionObj->service_id}, but current loop is Service {$service->id}");
-                                }
+                            if ($request->hasFile($fileKey)) {
+                                $file = $request->file($fileKey);
+                                $storedValue = $file->store('documents/orders', 'public');
                             }
+
+                            Answers::create([
+                                'user_id' => $user->id,
+                                'order_id' => $order->id,
+                                'order_item_id' => $orderItem->id,
+                                'questionary_id' => $answer['question_id'],
+                                'value' => $storedValue,
+                            ]);
                         }
                     }
-                } // End Item Loop
 
-                // --- D. CREATE TRANSACTION ---
+                }
+
+                // 4️⃣ Transaction record
                 Transaction::create([
                     'user_id' => $user->id,
                     'order_id' => $order->id,
@@ -189,9 +173,9 @@ class CheckoutController extends Controller
                     'status' => 'initiated',
                 ]);
 
-                // --- E. SEND NOTIFICATIONS ---
+                // 5️⃣ Notify admins
                 $admins = User::where('role', 'admin')->get();
-                if ($admins->count() > 0) {
+                if ($admins->count()) {
                     Notification::send($admins, new NewOrderPlaced($order));
                 }
 
@@ -199,18 +183,17 @@ class CheckoutController extends Controller
                     'status' => true,
                     'message' => 'Order placed successfully',
                     'data' => [
-                        'order_id' => $order->id,
-                        'stripe_id' => $paymentIntent->id,
+                        'order' => $order,
                     ],
                 ], 201);
             });
 
         } catch (\Exception $e) {
-            Log::error('Order Failed: '.$e->getMessage());
+            Log::error('Order Error: '.$e->getMessage());
 
             return response()->json([
                 'status' => false,
-                'message' => 'Order processing failed',
+                'message' => 'Failed to place order',
                 'error' => $e->getMessage(),
             ], 500);
         }

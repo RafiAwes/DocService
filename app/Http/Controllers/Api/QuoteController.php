@@ -109,18 +109,24 @@ class QuoteController extends Controller
                         $question = Questionaries::findOrFail($answerData['question_id']);
                         $storedValue = null;
 
-                        // Case 1: File Upload
-                        if ($question->type === 'file') {
+                        // Normalize type for consistent handling
+                        $type = method_exists($question, 'getAttribute') ? ($question->normalized_type ?? strtolower(str_replace(' ', '', $question->type))) : strtolower(str_replace(' ', '', $question->type));
+
+                        // Case 1: File Upload (only if type explicitly 'file')
+                        if ($type === 'file') {
                             // Check if the file exists in the request at this specific index
                             if ($request->hasFile("answers.{$index}.value")) {
                                 $file = $request->file("answers.{$index}.value");
                                 // Store in specific folder
-                                $storedValue = $file->store('documents/dynamic_uploads', 'public');
+                                $storedValue = $file->store('documents/quotes', 'public');
                             }
-                        }
-                        // Case 2: Standard Text/Input
-                        else {
-                            $storedValue = $answerData['value'];
+                        } elseif ($type === 'checkout') {
+                            // Normalize checkbox values (true/false, 'on', '1', etc.)
+                            $raw = $answerData['value'] ?? null;
+                            $storedValue = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                        } else {
+                            // Textbox, Input field, Drop down
+                            $storedValue = $answerData['value'] ?? null;
                         }
 
                         // Save to Database
