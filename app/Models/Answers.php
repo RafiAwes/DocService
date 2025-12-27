@@ -11,12 +11,17 @@ class Answers extends Model
     ];
 
     protected $casts = [
-        'delivery_details_ids' => 'array', // Converting JSON <-> Array automatically
+        'delivery_details_ids' => 'array',
         'south_african'        => 'boolean',
     ];
 
     public function serviceQuote()
     {
         return $this->belongsTo(ServiceQuote::class);
+    }
+
+    public function questionary()
+    {
+        return $this->belongsTo(Questionaries::class, 'questionary_id');
     }
 }

@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Answer;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Answers;
 use App\Models\DeliveryDetails;
 
 class ServiceQuote extends Model
@@ -40,6 +41,6 @@ class ServiceQuote extends Model
 
     public function answers()
     {
-        return $this->hasMany(Answer::class);
+        return $this->hasMany(Answers::class);
     }
 }

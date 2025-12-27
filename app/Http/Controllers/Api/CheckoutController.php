@@ -165,7 +165,7 @@ class CheckoutController extends Controller
                                     }
 
                                     // Create Answer Record
-                                    Answer::create([
+                                    Answers::create([
                                         'service_quote_id' => $serviceQuote->id,
                                         'questionary_id' => $qId,
                                         'value' => $storedValue,
