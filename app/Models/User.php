@@ -25,6 +25,7 @@ class User extends Authenticatable
         'role',
         'phone_number',
         'address',
+        'profile_pic',
         'verification_code',
         'verification_expires_at',
         'email_verified_at',
@@ -65,5 +66,14 @@ class User extends Authenticatable
     protected function quotes()
     {
         return $this->hasMany(Quote::class);
+    }
+
+    /**
+     * Get the user's profile picture URL.
+     * Returns default image if no profile picture is set.
+     */
+    public function getProfilePicAttribute($value)
+    {
+        return $value ? url($value) : url('/images/default/user.png');
     }
 }

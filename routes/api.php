@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\Api\authController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PagesController;
@@ -102,6 +103,15 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         // Finish the process (Call this after Stripe frontend succeeds)
         Route::post('/checkout/success', 'paymentSuccess');
     });
+
+    // cart module
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'addToCart']);
+    
+    // Note: We use the CartItem ID here (e.g., /cart/update/5)
+    Route::put('/cart/update/{itemId}', [CartController::class, 'updateItem']);
+    Route::delete('/cart/remove/{itemId}', [CartController::class, 'removeItem']);
+    Route::delete('/cart/clear', [CartController::class, 'clearCart']);
 });
 
 Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], function () {

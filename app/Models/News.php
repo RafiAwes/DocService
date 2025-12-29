@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class News extends Model
@@ -31,9 +32,9 @@ class News extends Model
     {
         return Attribute::make(
             get: function ($value) {
-                // Return null if no image exists
+                // Return default image if no image exists
                 if (! $value) {
-                    return null;
+                    return url('/images/default/noimage.jpg');
                 }
 
                 // Check if it's already a complete URL (e.g. from a seeder)

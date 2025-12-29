@@ -9,6 +9,7 @@ class Quote extends Model
     protected $fillable = [
         'user_id',
         'type',
+    
     ];
 
     public function user()

@@ -11,6 +11,7 @@ class Service extends Model
         'title',
         'subtitle',
         'order_type',
+        'type',
         'price',
         'description',
     ] ;

@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Quote;
 use App\Models\Answers;
 use App\Models\CustomQuote;
-use App\Models\Questionaries;
-use App\Models\Quote;
 use App\Models\ServiceQuote;
-use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\Questionaries;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 
 class QuoteController extends Controller
 {
@@ -76,6 +77,7 @@ class QuoteController extends Controller
         // 1. Basic Validation
         $request->validate([
             'service_id' => 'required|exists:services,id',
+            'delivery_details_ids' => 'nullable|array',
             // Answers is now an array of objects
             'answers' => 'nullable|array',
             'answers.*.question_id' => 'required|exists:questionaries,id',
@@ -88,7 +90,7 @@ class QuoteController extends Controller
 
                 // A. Create Parent Quote
                 $quote = Quote::create([
-                    'user_id' => $request->user()->id,
+                    'user_id' => Auth::user()->id,
                     'type' => 'service',
                 ]);
 
@@ -99,6 +101,7 @@ class QuoteController extends Controller
                     // Store delivery details if you still use them, otherwise remove
                     'delivery_details_ids' => $request->delivery_details_ids ?? [],
                 ]);
+
 
                 // C. Process Dynamic Answers
                 if ($request->has('answers')) {
@@ -111,7 +114,6 @@ class QuoteController extends Controller
 
                         // Normalize type for consistent handling
                         $type = method_exists($question, 'getAttribute') ? ($question->normalized_type ?? strtolower(str_replace(' ', '', $question->type))) : strtolower(str_replace(' ', '', $question->type));
-
                         // Case 1: File Upload (only if type explicitly 'file')
                         if ($type === 'file') {
                             // Check if the file exists in the request at this specific index
@@ -128,9 +130,8 @@ class QuoteController extends Controller
                             // Textbox, Input field, Drop down
                             $storedValue = $answerData['value'] ?? null;
                         }
-
                         // Save to Database
-                        Answers::create([
+                        $answers = Answers::create([
                             'service_quote_id' => $serviceQuote->id,
                             'questionary_id' => $question->id,
                             'value' => $storedValue,

@@ -18,6 +18,7 @@ class ServiceController extends Controller
             'title'       => 'required|string|max:255',
             'subtitle'    => 'nullable|string|max:255',
             'order_type'  => 'nullable|in:quote,checkout,null',
+            'type'        => 'nullable|in:Quote,Checkout',
             'price'       => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
 
@@ -41,7 +42,7 @@ class ServiceController extends Controller
             // Relation: Questionaries
             'questions'           => 'nullable|array',
             'questions.*.name'    => 'required_with:questions|string',
-            'questions.*.type'    => 'required_with:questions|in:Textbox,Input field,Drop down,Checkout',
+            'questions.*.type'    => 'required_with:questions|in:Textbox,Input field,Drop down,Check box',
             'questions.*.options' => 'nullable|json',
 
             // Relation: Required Documents
@@ -58,6 +59,7 @@ class ServiceController extends Controller
                     'title'       => $validated['title'],
                     'subtitle'    => $validated['subtitle'] ?? null, // Added subtitle
                     'order_type'  => $validated['order_type'] ?? 'null',
+                    'type'        => $validated['type'] ?? null,
                     'price'       => $validated['price'] ?? null,
                     'description' => $validated['description'] ?? null,
                 ]);
@@ -125,6 +127,7 @@ class ServiceController extends Controller
             'title'       => 'sometimes|string|max:255',
             'subtitle'    => 'nullable|string|max:255',
             'order_type'  => 'nullable|in:quote,checkout,null',
+            'type'        => 'nullable|in:Quote,Checkout',
             'price'       => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
 
@@ -153,7 +156,7 @@ class ServiceController extends Controller
             'questions.*.id'      => 'nullable|integer|exists:questionaries,id',
             'questions.*.name'    => 'required_with:questions|string',
             // Align with new types (capitalized with spaces)
-            'questions.*.type'    => 'required_with:questions|in:Textbox,Input field,Drop down,Checkout',
+            'questions.*.type'    => 'required_with:questions|in:Textbox,Input field,Drop down,Check box',
             'questions.*.options' => 'nullable|json',
 
             // 5. Required Documents
@@ -168,7 +171,7 @@ class ServiceController extends Controller
                 // A. Update Main Service Data
                 // Only updates fields provided in the request
                 $service->update($request->only([
-                    'category_id', 'title', 'subtitle', 'order_type', 'price', 'description'
+                    'category_id', 'title', 'subtitle', 'order_type', 'type', 'price', 'description'
                 ]));
 
                 /**

@@ -7,13 +7,14 @@ use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
+        $perpage = $request->query('per_page', 10);
         // Get all notifications (read and unread)
         // unreadNotifications() gives only new ones
-        $notifications = $user->notifications;
+        $notifications = $user->notifications()->paginate($perpage);
 
         return response()->json([
             'status'    => true,

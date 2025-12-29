@@ -20,12 +20,16 @@ return new class extends Migration
             if (! Schema::hasColumn('answers', 'user_id')) {
                 $table->foreignId('user_id')->nullable()->after('id')->constrained('users')->cascadeOnDelete();
             }
-            if (! Schema::hasColumn('answers', 'order_item_id')) {
-                $table->foreignId('order_item_id')->nullable()->after('order_id')->constrained('order_items')->cascadeOnDelete();
-            }
-            // Ensure order_id exists too
+            // Ensure order_id exists before adding order_item_id
             if (! Schema::hasColumn('answers', 'order_id')) {
                 $table->foreignId('order_id')->nullable()->after('user_id')->constrained('orders')->cascadeOnDelete();
+            }
+            if (! Schema::hasColumn('answers', 'order_item_id')) {
+                if (Schema::hasColumn('answers', 'order_id')) {
+                    $table->foreignId('order_item_id')->nullable()->after('order_id')->constrained('order_items')->cascadeOnDelete();
+                } else {
+                    $table->foreignId('order_item_id')->nullable()->after('user_id')->constrained('order_items')->cascadeOnDelete();
+                }
             }
         });
     }
@@ -39,14 +43,18 @@ return new class extends Migration
             $table->string('type')->change();
         });        
         Schema::table('answers', function (Blueprint $table) {
-            $table->dropForeign(['user_id']);
-            $table->dropColumn('user_id');
-
-            $table->dropForeign(['order_item_id']);
-            $table->dropColumn('order_item_id');
-
-            $table->dropForeign(['order_id']);
-            $table->dropColumn('order_id');
+            if (Schema::hasColumn('answers', 'order_item_id')) {
+                try { $table->dropForeign('answers_order_item_id_foreign'); } catch (\Throwable $e) {}
+                $table->dropColumn('order_item_id');
+            }
+            if (Schema::hasColumn('answers', 'order_id')) {
+                try { $table->dropForeign('answers_order_id_foreign'); } catch (\Throwable $e) {}
+                $table->dropColumn('order_id');
+            }
+            if (Schema::hasColumn('answers', 'user_id')) {
+                try { $table->dropForeign('answers_user_id_foreign'); } catch (\Throwable $e) {}
+                $table->dropColumn('user_id');
+            }
         });
     }
 };
