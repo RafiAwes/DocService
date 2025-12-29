@@ -50,6 +50,8 @@ Route::group(['controller' => authController::class], function () {
 Route::group(['controller' => ServiceController::class], function () {
     Route::get('/service/list', 'serviceList');
     Route::get('/service/details/{service}', 'serviceDetails');
+    Route::get('/services/by-category/{category}/{isSouthAfrican}', 'serviceUnderCategory');
+    Route::get('/service/questions/{service}', 'serviceQuestions');
 });
 
 Route::apiResource('subscribers', SubscriberController::class)->only(['index', 'store']);
@@ -112,6 +114,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::put('/cart/update/{itemId}', [CartController::class, 'updateItem']);
     Route::delete('/cart/remove/{itemId}', [CartController::class, 'removeItem']);
     Route::delete('/cart/clear', [CartController::class, 'clearCart']);
+    Route::get('/cart/questions', [CartController::class, 'getCartRequirements']);
 });
 
 Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], function () {

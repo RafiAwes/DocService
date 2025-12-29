@@ -77,11 +77,11 @@ class OrderController extends Controller
                 'transactions',
             ]);
 
-            // 2. SEARCH Logic (Search by Slug)
+            // 2. SEARCH Logic (Search by orderid)
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
                 // Using 'like' allows for partial matches (e.g. searching "839" finds "839201")
-                $query->where('slug', 'like', "%{$searchTerm}%");
+                $query->where('orderid', 'like', "%{$searchTerm}%");
             }
 
             // 3. STATUS Logic (The "Switch")
