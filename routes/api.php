@@ -50,7 +50,7 @@ Route::group(['controller' => authController::class], function () {
 Route::group(['controller' => ServiceController::class], function () {
     Route::get('/service/list', 'serviceList');
     Route::get('/service/details/{service}', 'serviceDetails');
-    Route::get('/services/by-category/{category}/{isSouthAfrican}', 'serviceUnderCategory');
+    Route::get('/services/by-category', 'serviceUnderCategory');
     Route::get('/service/questions/{service}', 'serviceQuestions');
 });
 

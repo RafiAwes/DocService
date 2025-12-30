@@ -12,6 +12,8 @@ use App\Models\Questionaries;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\NewQuoteRequest;
+use Illuminate\Support\Facades\Notification;
 
 class QuoteController extends Controller
 {
@@ -51,6 +53,16 @@ class QuoteController extends Controller
                     'duc' => $validated['duc'],
                     'residence_country' => $validated['residence_country'],
                 ]);
+
+                // sending notification to the use and admins
+                $user = Auth::user();
+                Notification::send($user, new NewQuoteRequest($quote));
+
+                $admins = User::where('role', 'admin')->get();
+                if ($admins->isNotEmpty()) {
+                    Notification::send($admins, new NewQuoteRequest($quote));
+                }
+
 
                 return $quote;
             });
@@ -132,10 +144,20 @@ class QuoteController extends Controller
                         }
                         // Save to Database
                         $answers = Answers::create([
+                            'user_id' => Auth::id(),
                             'service_quote_id' => $serviceQuote->id,
                             'questionary_id' => $question->id,
                             'value' => $storedValue,
                         ]);
+
+                        // sending notification to the use and admins
+                        $user = Auth::user();
+                        Notification::send($user, new NewQuoteRequest($quote));
+
+                        $admins = User::where('role', 'admin')->get();
+                        if ($admins->isNotEmpty()) {
+                            Notification::send($admins, new NewQuoteRequest($quote));
+                        }
                     }
                 }
 

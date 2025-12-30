@@ -316,6 +316,15 @@ class ServiceController extends Controller
             'requiredDocuments',
         ])->find($service->id);
 
+        // $totalPrice = $service->price;
+        // foreach ($service->includedServices as $includedService) {
+        //     $totalPrice += $includedService->price;
+        // }
+        // foreach ($service->deliveryDetails as $deliveryDetail) {
+        //     $totalPrice += $deliveryDetail->price;
+        // }
+        // $total_price = $totalPrice;
+
         if (! $service) {
             return response()->json([
                 'status' => false,
@@ -327,32 +336,69 @@ class ServiceController extends Controller
             'status' => true,
             'message' => 'Service details retrieved successfully!',
             'data' => $service,
+            // 'total_price' => $total_price,
         ], 200);
     }
 
-    public function serviceUnderCategory(Request $request, $categoryId, $isSouthAfrican)
+    public function serviceUnderCategory(Request $request)
     {
-        $query = Service::where('category_id', $categoryId)->where('is_south_african', $isSouthAfrican);
+        // 1. Validate the Query Parameters
+        $request->validate([
+            'category_id'      => 'required|integer|exists:categories,id',
+            'is_south_african' => 'required|boolean', // Accepts 1, 0, "true", "false"
+            'search'           => 'nullable|string|max:100',
+            'per_page'         => 'nullable|integer|min:1|max:100'
+        ]);
 
-        $perPage = request()->query('per_page', 10);
+        // 2. Retrieve variables from Request
+        $categoryId = $request->input('category_id');
+        $isSouthAfrican = $request->boolean('is_south_african'); // Helper handles "true"/"1"/1 correctly
+        $perPage = $request->input('per_page', 10);
 
+        // 3. Build the Query
+        $query = Service::where('category_id', $categoryId)
+            ->where('is_south_african', $isSouthAfrican);
+
+        // 4. Handle Search
         if ($request->filled('search')) {
             $searchTerm = trim($request->search);
-            $query->whereRaw('LOWER(title) LIKE ?', ['%'.strtolower($searchTerm).'%']);
+            // Using generic LIKE for compatibility
+            $query->where('title', 'LIKE', '%' . $searchTerm . '%');
         }
 
-        $services = $query->with([
+        // 5. Fetch & Paginate
+        $servicesPaginator = $query->with([
             'includedServices',
             'processingTimes',
             'deliveryDetails',
             'questionaries',
             'requiredDocuments',
-        ])->orderBy('created_at', 'desc')->paginate($perPage);
+        ])
+        ->orderBy('created_at', 'desc')
+        ->paginate($perPage);
+
+        // 6. Format the Data (Clean Output)
+        $formattedServices = $servicesPaginator->through(function ($service) {
+            return [
+                'id' => $service->id,
+                'title' => $service->title,
+                'subtitle' => $service->subtitle,
+                'price' => $service->price,
+                'description' => $service->description,
+                
+                // Just basic counts or minimal info for the list view to keep it light
+                // (You can add full nested details here if you really need them in the list)
+                'delivery_options_count' => $service->deliveryDetails->count(),
+                'processing_time' => $service->processingTimes->first()->time ?? 'N/A', 
+                
+                'created_at' => $service->created_at->toDateTimeString(),
+            ];
+        });
 
         return response()->json([
             'status' => true,
-            'message' => 'Services under category retrieved successfully!',
-            'data' => $services,
+            'message' => 'Services retrieved successfully!',
+            'data' => $formattedServices, // This keeps pagination meta (current_page, etc.)
         ], 200);
     }
 

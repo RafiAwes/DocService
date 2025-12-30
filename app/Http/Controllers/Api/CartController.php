@@ -65,6 +65,8 @@ class CartController extends Controller
             return [
                 'id' => $item->id,
                 'cart_id' => $item->cart_id,
+                'service_id' => $item->service_id,
+                'total_price' => $item->total_price,
                 'quantity' => $item->quantity,
                 'delivery_details_ids' => $item->delivery_details_ids,
                 'delivery_details' => $selectedDeliveryDetails,
@@ -99,6 +101,7 @@ class CartController extends Controller
             'data' => [
                 'cart_id' => $cart->id,
                 'user_id' => $cart->user_id,
+                'total_price' => $cart->total_price,
                 'total_items' => $formattedItems->count(),
                 'grand_total' => $grandTotal,
                 'items' => $formattedItems,
@@ -116,6 +119,7 @@ class CartController extends Controller
     {
         // 1. Validation (Removed 'answers' rules since we aren't storing them)
         $request->validate([
+            'total_price' => 'required|numeric|min:0',
             'service_id' => 'required|exists:services,id',
             'quantity' => 'nullable|integer|min:1',
             'delivery_details_ids' => 'nullable|array',
@@ -134,9 +138,12 @@ class CartController extends Controller
                 $cartItem = CartItem::create([
                     'cart_id' => $cart->id,
                     'service_id' => $request->service_id,
+                    'total_price' => $request->total_price,
                     'quantity' => $request->quantity ?? 0, // Default to 1 if null
                     'delivery_details_ids' => $request->delivery_details_ids ?? [],
                 ]);
+
+                // dd($cartItem);
 
                 // C. (REMOVED) Logic to store in 'answers' table has been deleted.
 

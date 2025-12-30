@@ -74,16 +74,6 @@ class CheckoutController extends Controller
      */
     public function paymentSuccess(Request $request)
     {
-        // Normalize JSON-in-form-data (Postman form-data)
-        // foreach (['items', 'answers'] as $key) {
-        //     $val = $request->input($key);
-        //     if (is_string($val)) {
-        //         $decoded = json_decode($val, true);
-        //         if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-        //             $request->merge([$key => $decoded]);
-        //         }
-        //     }
-        // }
 
         // 1️⃣ Validate
         $request->validate([
@@ -173,12 +163,17 @@ class CheckoutController extends Controller
                     'status' => 'initiated',
                 ]);
 
-                // 5️⃣ Notify admins
+                // 5️⃣ Notify admins ans user
+               
+                // Notify the user who placed the order
+                $user = Auth::user();
+                Notification::send($user, new NewOrderPlaced($order));
+
+                // Notify all admins
                 $admins = User::where('role', 'admin')->get();
-                if ($admins->count()) {
+                if ($admins->isNotEmpty()) {
                     Notification::send($admins, new NewOrderPlaced($order));
                 }
-
                 return response()->json([
                     'status' => true,
                     'message' => 'Order placed successfully',
