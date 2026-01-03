@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Order;
-use App\Models\Transaction;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Models\{Order, Transaction};
+use App\Http\Controllers\Controller;
 use App\Notifications\OrderCompleted;
 
 class OrderController extends Controller
@@ -78,8 +77,8 @@ class OrderController extends Controller
             ]);
 
             // 2. SEARCH Logic (Search by orderid)
-            if ($request->filled('search')) {
-                $searchTerm = $request->search;
+            if ($request->serach) {
+               $searchTerm = $request->serach;
                 // Using 'like' allows for partial matches (e.g. searching "839" finds "839201")
                 $query->where('orderid', 'like', "%{$searchTerm}%");
             }
