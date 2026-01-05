@@ -2,24 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\RatingController;
-use App\Http\Controllers\Api\authController;
-use App\Http\Controllers\Api\CartController;
-use App\Http\Controllers\Api\NewsController;
-use App\Http\Controllers\Api\OrderController;
-use App\Http\Controllers\Api\PagesController;
-use App\Http\Controllers\Api\QuoteController;
-use App\Http\Controllers\SubscriberController;
-use App\Http\Controllers\Api\MessageController;
-use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\ServiceController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\CheckoutController;
-use App\Http\Controllers\Api\SocialAuthController;
-use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\StripeWebhookController;
-use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\{AdminDashboardController, CartController, CategoryController, CheckoutController, HomeController, MessageController, NewsController, NotificationController, OrderController, PagesController, ProfileController, QuoteController, RatingController, ServiceController, SocialAuthController, StripeWebhookController, SubscriberController, authController};
 
 Route::get('/user', function (Request $request) {
     return $request->user();
