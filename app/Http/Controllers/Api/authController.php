@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
-use Carbon\Carbon;
-use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\{Hash, Validator};
+use App\Models\User;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use App\Services\EmailVerificationService;
-use App\Notifications\PasswordResetRequested;
-use App\Notifications\EmailVerificationRequest;
+use App\Notifications\{EmailVerificationRequest, PasswordResetRequested};
+use Carbon\Carbon;
 
 class authController extends Controller
 {
@@ -129,43 +127,7 @@ class authController extends Controller
         
         return ['success' => true, 'message' => 'Email verified successfully'];
     }
-
-    // public function sendResetLinkEmail(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required|email|exists:users,email',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'status'=> false,
-    //             'message' => 'Validation failed',
-    //             'errors' => $validator->errors()
-    //         ], 422);
-    //     }
-
-    //     $user = User::where('email', $request->email)->first();
-        
-    //     // Generate reset token
-    //     $resetToken = Str::random(60);
-        
-    //     // Set expiration time (60 minutes from now)
-    //     $expiresAt = Carbon::now()->addMinutes(60);
-        
-    //     // Save reset token and expiration time
-    //     $user->update([
-    //         'reset_token' => Hash::make($resetToken),
-    //         'reset_token_expires_at' => $expiresAt,
-    //     ]);
-
-    //     // Send reset token to user's email
-    //     $user->notify(new PasswordResetRequested($resetToken));
-
-    //     return response()->json([
-    //         'status' => true,
-    //         'message' => 'Password reset link sent to your email'
-    //     ], 200);
-    // }
+ 
 
     public function sendResetOTP(Request $request)
     {
@@ -207,54 +169,7 @@ class authController extends Controller
         ], 200);
     }
 
-    /**
-     * Reset the user's password
-     */
-    // public function resetPassword(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required|email|exists:users,email',
-    //         'token' => 'required|string',
-    //         'password' => 'required|string|min:8|confirmed',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'message' => 'Validation failed',
-    //             'errors' => $validator->errors()
-    //         ], 422);
-    //     }
-
-    //     $user = User::where('email', $request->email)->first();
-
-    //     // Check if reset token has expired
-    //     if (!$user->reset_token_expires_at || Carbon::now()->isAfter($user->reset_token_expires_at)) {
-    //         return response()->json([
-    //             'status'=> false,
-    //             'message' => 'Password reset token has expired. Please request a new one.'
-    //         ], 422);
-    //     }
-
-    //     // Verify the token
-    //     if (!Hash::check($request->token, $user->reset_token)) {
-    //         return response()->json([
-    //             'status'=> false,
-    //             'message' => 'Invalid password reset token'
-    //         ], 422);
-    //     }
-
-    //     // Update password
-    //     $user->update([
-    //         'password' => Hash::make($request->password),
-    //         'reset_token' => null,
-    //         'reset_token_expires_at' => null,
-    //     ]);
-
-    //     return response()->json([
-    //         'status'=> true,
-    //         'message' => 'Password reset successfully'
-    //     ], 200);
-    // }
+    
 
     public function verifyOtp(Request $request)
     {
@@ -420,7 +335,7 @@ class authController extends Controller
         ]);
 
         // Send verification code to user's email
-        $user->notify(new EmailVerificationRequested($verificationCode));
+        $user->notify(new EmailVerificationRequest($verificationCode));
 
         return response()->json([
             'status'=> true,
