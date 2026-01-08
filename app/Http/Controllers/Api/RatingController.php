@@ -15,10 +15,10 @@ class RatingController extends Controller
     public function reviewList()
     {
        
-        $ratings = Rating::get();
+        $ratings = Rating::with('user:id,name,email,profile_pic')->orderBy('created_at', 'desc')->get();
 
         return response()->json([
-            'success' => true,
+            'status' => true,
             'message' => 'Reviews retrieved successfully',
             'data' => $ratings,
         ], 200);
@@ -40,7 +40,7 @@ class RatingController extends Controller
         $rating = Rating::create($validated);
 
         return response()->json([
-            'success' => true,
+            'status' => true,
             'message' => 'Rating submitted successfully',
             'data' => $rating->load('user', 'order'),
         ], 201);
