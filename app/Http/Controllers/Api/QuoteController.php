@@ -2,18 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\User;
-use App\Models\Quote;
-use App\Models\Answers;
-use App\Models\CustomQuote;
-use App\Models\ServiceQuote;
 use Illuminate\Http\Request;
-use App\Models\Questionaries;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{Auth, DB, Notification};
+use App\Models\{Answers, CustomQuote, Questionaries, Quote, ServiceQuote, User};
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
 use App\Notifications\NewQuoteRequest;
-use Illuminate\Support\Facades\Notification;
 
 class QuoteController extends Controller
 {
@@ -266,7 +259,8 @@ class QuoteController extends Controller
     {
         try {
             $perPage = request()->query('per_page', 10);
-            $quotes = Quote::with(['user', 'serviceQuote', 'serviceQuote.service', 'serviceQuote.service.category'])->paginate($perPage);
+            $quotes = Quote::with(['user', 'serviceQuote', 'serviceQuote.service', 'serviceQuote.service.category'])->
+            latest('id')->paginate($perPage);
 
             return response()->json([
                 'status' => true,

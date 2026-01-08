@@ -10,6 +10,21 @@ use Illuminate\Support\Facades\Auth;
 class RatingController extends Controller
 {
     /**
+     * List all reviews/ratings for the authenticated user.
+     */
+    public function reviewList()
+    {
+       
+        $ratings = Rating::get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reviews retrieved successfully',
+            'data' => $ratings,
+        ], 200);
+    }
+
+    /**
      * Store a newly created rating in storage.
      */
     public function store(Request $request)
@@ -30,4 +45,6 @@ class RatingController extends Controller
             'data' => $rating->load('user', 'order'),
         ], 201);
     }
+
+    
 }

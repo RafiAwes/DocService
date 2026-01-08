@@ -55,12 +55,18 @@ Route::get('/auth/google/callback', [SocialAuthController::class, 'handleGoogleC
 
 Route::post('/auth/google', [SocialAuthController::class, 'googleLogin']);
 
+// ratings and reviews
+Route::get('/rating/list', [RatingController::class, 'reviewList']);
+
 // stripe payment
 // Route::post('stripe/webhook', [StripeWebhookController::class, 'handleWebhook']);
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [authController::class, 'logout']);
 
+    // Rating routes
+    Route::post('/rating', [RatingController::class, 'store']);
+   
 
     Route::group(['controller' => ProfileController::class], function () {
         // updating profile
@@ -160,7 +166,8 @@ Route::group(['middleware' => ['auth:sanctum', 'user'], 'prefix' => 'user'], fun
     Route::get('/my-orders', [OrderController::class, 'userOrders']);
     Route::get('/my-orders/{id}', [OrderController::class, 'details']);
 
-    Route::post('rating', [RatingController::class, 'store']);
+    Route::post('/rating', [RatingController::class, 'store']);
+    Route::get('/rating/list', [RatingController::class, 'reviewList']);
     Route::get('transactions-history', [OrderController::class, 'transactionsHistory']);
 });
 
