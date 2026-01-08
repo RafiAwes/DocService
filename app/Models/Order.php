@@ -4,8 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Answers;
-use App\Models\Transaction;
+use App\Models\{Answers, Transaction};
 
 class Order extends Model
 {
@@ -16,6 +15,11 @@ class Order extends Model
         'stripe_payment_id',
         'total_amount',
         'status',
+    ];
+
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'is_south_africa' => 'boolean',
     ];
 
     public function user()

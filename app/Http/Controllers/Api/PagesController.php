@@ -2,33 +2,39 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\Faq;
-use App\Models\Pages;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Models\{Faq, pages as Pages};
 
 class PagesController extends Controller
 {
     /**
      * Get content by key (Public)
-     * GET /api/pages/{key}
-     * Example: /api/pages/terms
+     * Supports: /api/pages?key=terms and /api/pages/{key}
      */
-    
-    public function show($key)
+    public function show(Request $request, $key = null)
     {
-        $page = Pages::where('key', $request->key)->first();
+        $lookupKey = $key ?? $request->query('key');
+
+        if (!$lookupKey) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Missing required parameter: key'
+            ], 400);
+        }
+
+        $page = Pages::where('key', $lookupKey)->first();
 
         if (!$page) {
             return response()->json([
-                'status'    => false, 
-                'message'   => 'Page content not found'
+                'status'  => false,
+                'message' => 'Page content not found'
             ], 404);
         }
 
         return response()->json([
-            'status'    => true, 
-            'data'      => $page
+            'status' => true,
+            'data'   => $page
         ]);
     }
 

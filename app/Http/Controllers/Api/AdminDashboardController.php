@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\Order;
-use App\Models\Quote;
-use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Controller;
+use App\Models\{Order, Quote, User};
+use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
 {
@@ -17,7 +15,7 @@ class AdminDashboardController extends Controller
         try {
             $totalUsers = User::where('role', 'user')->count();
             $totalQuotes = Quote::count();
-            $totalRevenue = Order::where('status', 'paid')->sum('total_amount');
+            $totalRevenue = Order::where('status', 'completed')->sum('total_amount');
 
             return response()->json([
                 'status' => true,
@@ -47,16 +45,37 @@ class AdminDashboardController extends Controller
         try {
             $chartData = [];
 
+            // Debug: Check raw data
+            $debugInfo = [
+                'total_orders' => Order::count(),
+                'completed_orders' => Order::where('status', 'completed')->count(),
+                'completed_with_amount' => Order::where('status', 'completed')
+                    ->whereNotNull('total_amount')
+                    ->where('total_amount', '>', 0)
+                    ->count(),
+                'sample_order' => Order::where('status', 'completed')
+                    ->select('id', 'orderid', 'total_amount', 'created_at', 'status')
+                    ->first(),
+            ];
+
             if ($request->type === 'weekly') {
                 $chartData = $this->getWeeklyData();
             } elseif ($request->type === 'monthly') {
                 $chartData = $this->getMonthlyData();
             }
 
+            // Calculate total for verification
+            $total = collect($chartData)->sum('value');
+
             return response()->json([
                 'status' => true,
                 'message' => ucfirst($request->type).' chart data fetched successfully',
-                'data' => $chartData,
+                'data' => [
+                    'chart' => $chartData,
+                    'total' => $total,
+                    'currency' => 'USD',
+                ],
+                'debug' => $debugInfo,
             ]);
 
         } catch (\Exception $e) {
@@ -71,14 +90,16 @@ class AdminDashboardController extends Controller
     // --- Private Helper: Weekly Logic (with Zero-Filling) ---
     private function getWeeklyData()
     {
-        // 1. Get raw data
+        // 1. Get raw data - only completed orders with total_amount
         $rawWeeklyData = Order::select(
             DB::raw('DATE(created_at) as date'),
             DB::raw('SUM(total_amount) as total')
         )
-            ->where('status', 'paid')
-            ->where('created_at', '>=', Carbon::now()->subDays(6))
+            ->where('status', 'completed')
+            ->whereNotNull('total_amount')
+            ->where('created_at', '>=', Carbon::now()->subDays(7)->startOfDay())
             ->groupBy('date')
+            ->orderBy('date')
             ->get();
 
         // 2. Format & Fill Zeros
@@ -92,7 +113,7 @@ class AdminDashboardController extends Controller
 
             $weeklyChart[] = [
                 'label' => $dayName, // Generic 'label' key for frontend
-                'value' => $dayData ? (float) $dayData->total : 0,
+                'value' => $dayData ? (float) $dayData->total : 0.0,
             ];
         }
 
@@ -106,17 +127,19 @@ class AdminDashboardController extends Controller
         $today = Carbon::now();
         $endOfMonth = Carbon::now()->endOfMonth();
 
-        // A. Get raw data for current month only
+        // A. Get raw data for current month only - completed orders with total_amount
         $rawMonthlyData = Order::select(
             DB::raw('DATE(created_at) as date'),
             DB::raw('SUM(total_amount) as total')
         )
-            ->where('status', 'paid')
+            ->where('status', 'completed')
+            ->whereNotNull('total_amount')
             ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
             ->groupBy('date')
+            ->orderBy('date')
             ->get();
 
-        // B. Loop from 1st of month until Today
+        // B. Loop from 1st of month until End of month
         $monthlyChart = [];
 
         // We clone the start date so we don't modify the original variable inside the loop
@@ -130,7 +153,7 @@ class AdminDashboardController extends Controller
 
             $monthlyChart[] = [
                 'label' => $dateString, // Label is the Date (e.g. 2025-12-01)
-                'value' => $dayData ? (float) $dayData->total : 0,
+                'value' => $dayData ? (float) $dayData->total : 0.0,
             ];
 
             // Move to next day

@@ -40,7 +40,8 @@ Route::group(['controller' => ServiceController::class], function () {
 Route::apiResource('subscribers', SubscriberController::class)->only(['index', 'store']);
 
 Route::group(['controller' => PagesController::class], function () {
-    Route::get('/pages', 'show'); // e.g. /api/pages/terms
+    Route::get('/pages', 'show'); // supports /api/pages?key=terms
+    Route::get('/pages/{key}', 'show'); // also supports /api/pages/terms
     Route::get('/faqs', 'index');
 });
 
