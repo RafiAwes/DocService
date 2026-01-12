@@ -144,7 +144,10 @@ return [
 
     'redis' => [
 
-        'client' => env('REDIS_CLIENT', 'phpredis'),
+        // Use phpredis only when the extension is available; otherwise force predis even if env tries phpredis
+        'client' => extension_loaded('redis')
+            ? env('REDIS_CLIENT', 'phpredis')
+            : 'predis',
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
