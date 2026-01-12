@@ -31,10 +31,25 @@ class CartItem extends Model
     /**
      * Relationship: The Service being bought
      */
+    // public function service()
+    // {
+    //     return $this->belongsTo(related: Service::class);
+
+    // }
+
     public function service()
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsTo(Service::class)->withDefault([
+            'id' => null,
+            'title' => null,
+            'subtitle' => null,
+            'type' => null,
+            'order_type' => null,
+            'price' => 0,
+            'description' => null,
+        ]);
     }
+
 
     /**
      * Relationship: The Dynamic Answers

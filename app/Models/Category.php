@@ -19,4 +19,9 @@ class Category extends Model
     {
         return $value ? url($value) : url('/images/default/noimage.jpg');
     }
+
+    public function services()
+    {
+        return $this->hasMany(Service::class);
+    }
 }

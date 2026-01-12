@@ -2,17 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\Answers;
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\DeliveryDetails;
-use App\Models\Questionaries;
-use App\Models\RequiredDocuments;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\{Auth, DB, Log};
+use App\Http\Controllers\Controller;
+use App\Models\{Answers, Cart, CartItem, DeliveryDetails, Questionaries, RequiredDocuments};
 
 class CartController extends Controller
 {
@@ -47,6 +40,7 @@ class CartController extends Controller
         }
 
         $formattedItems = $cart->items->map(function ($item) {
+            // $service = $item->service;
             $selectedDeliveryDetails = collect();
 
             if (! empty($item->delivery_details_ids)) {
@@ -61,6 +55,8 @@ class CartController extends Controller
                         ];
                     });
             }
+
+            // dd($service->title);
 
             return [
                 'id' => $item->id,

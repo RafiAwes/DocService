@@ -5,9 +5,7 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Address;
-use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\{Address, Content, Envelope};
 use Illuminate\Queue\SerializesModels;
 use App\Models\Message;
 
@@ -15,14 +13,16 @@ class MessageOnEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $messageData;
+    public $data;
+    public $type;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Message $messageData)
+    public function __construct(Message $data, $type = 'admin')
     {
-        $this->messageData = $messageData;
+        $this->data = $data;
+        $this->type = $type;
     }
 
     /**
@@ -30,10 +30,14 @@ class MessageOnEmail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $subject = $this->type == 'admin'
+            ? 'New Contact Message from ' . $this->data->name
+            : 'Thank you for contacting us, ' . $this->data->name;
+
         return new Envelope(
-            subject: 'New Contact Message from ' . $this->messageData->name,
+            subject: $subject,
             replyTo: [
-                new Address($this->messageData->email, $this->messageData->name),
+                new Address($this->data->email, $this->data->name),
             ],
         );
     }
@@ -46,7 +50,7 @@ class MessageOnEmail extends Mailable
         return new Content(
             view: 'emails.contact',
             with: [
-                'messageData' => $this->messageData,
+                'messageData' => $this->data,
             ],
         );
     }

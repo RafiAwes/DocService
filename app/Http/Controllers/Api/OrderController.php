@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\{Order, Transaction};
+use Illuminate\Support\Facades\{Auth, DB};
 use App\Http\Controllers\Controller;
+use App\Models\{Order, Transaction};
 use App\Notifications\OrderCompleted;
 
 class OrderController extends Controller
 {
     /**
      * 1. USER: List my own orders
-     * GET /api/my-orders
+     * GET /api/user/my-orders
+     * GET /api/user/my-orders?status=completed
+     * GET /api/user/my-orders?status=pending
+     * GET /api/user/my-orders?search=800891
      */
     public function userOrders(Request $request)
     {
@@ -20,10 +23,9 @@ class OrderController extends Controller
             $user = Auth::user();
 
             $perPage = $request->query('per_page', 10);
-            $status = $request->query('status');
 
-            // Fetch orders for THIS user only, ordered by newest first
-            $orders = Order::with([
+            // Build query for THIS user's orders only
+            $query = Order::with([
                 'items.service',
                 'items.service.category',
                 'items.deliveryOptions',
@@ -32,12 +34,32 @@ class OrderController extends Controller
                 'transactions',
                 'rating'
             ])
-                ->where('user_id', $user->id)
-                ->orderBy('created_at', 'desc')
-                ->when($status, function ($query) use ($status) {
-                    $query->where('status', $status);
-                })
-                ->paginate($perPage); // Show 10 per page
+                ->where('user_id', $user->id);
+
+            // SEARCH Logic (Search by orderid)
+            if ($request->search) {
+                $searchTerm = $request->search;
+                $query->where('orderid', 'like', "%{$searchTerm}%");
+            }
+
+            // STATUS Logic
+            if ($request->has('status')) {
+                if ($request->status === 'completed') {
+                    $query->where('status', 'completed');
+                } elseif ($request->status === 'pending') {
+                    // "Pending" includes both 'pending' and 'paid' statuses
+                    $query->whereIn('status', ['pending', 'paid']);
+                } elseif ($request->status === 'all') {
+                    // No filter, show all
+                } else {
+                    // Direct status match for any other value
+                    $query->where('status', $request->status);
+                }
+            }
+
+            // Order & Pagination
+            $orders = $query->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             return response()->json([
                 'status' => true,
@@ -77,8 +99,8 @@ class OrderController extends Controller
             ]);
 
             // 2. SEARCH Logic (Search by orderid)
-            if ($request->serach) {
-               $searchTerm = $request->serach;
+            if ($request->search) {
+               $searchTerm = $request->search;
                 // Using 'like' allows for partial matches (e.g. searching "839" finds "839201")
                 $query->where('orderid', 'like', "%{$searchTerm}%");
             }
@@ -97,9 +119,15 @@ class OrderController extends Controller
 
             // 4. Order & Pagination
             $perPage = $request->query('per_page', 10);
+            
+            // Debug: Get SQL before pagination
+            $sql = $query->toSql();
+            $bindings = $query->getBindings();
+            
             $orders = $query->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
+           
             return response()->json([
                 'status' => true,
                 'message' => 'Orders fetched successfully',

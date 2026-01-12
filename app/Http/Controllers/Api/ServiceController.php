@@ -278,6 +278,24 @@ class ServiceController extends Controller
     public function serviceList(Request $request)
     {
         $query = Service::query();
+        if ($request->has('is_south_africa')) {
+            $isSouthAfrican = $request->boolean('is_south_africa');
+            $query->where('is_south_african', $isSouthAfrican);
+        }
+
+         // Search functionality
+
+        if($request->filled('category_id')) {
+            $categoryId = $request->category_id;
+            $query->where('category_id', $categoryId);
+        }
+
+        if($request->filled('order_type')){
+            $orderType = strtolower($request->order_type);
+            if (in_array($orderType, ['quote', 'checkout'])) {
+                $query->where('order_type', $orderType);
+            }
+        }
 
         if ($request->filled('search')) {
             // 1. Remove accidental spaces from start/end
@@ -288,7 +306,7 @@ class ServiceController extends Controller
             $query->whereRaw('LOWER(title) LIKE ?', ['%'.strtolower($searchTerm).'%']);
         }
 
-        $perPage = request()->query('per_page', 10);
+        $perPage = request()->query('per_page', 100);
 
         $services = $query->with([
             'includedServices',

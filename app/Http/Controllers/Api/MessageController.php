@@ -22,7 +22,7 @@ class MessageController extends Controller
 
         try {
             // 2. Save to Database
-            $message = Message::create([
+            $data = Message::create([
                 'name'    => $request->name,
                 'email'   => $request->email,
                 'message' => $request->message,
@@ -30,12 +30,15 @@ class MessageController extends Controller
 
             // 3. Send Email to Admin
             // Change 'admin@yoursite.com' to your actual email
-            Mail::to('rafiaweshan4897@gmail.com')->send(new MessageOnEmail($message));
+            $adminEmail = env('ADMIN_EMAIL', 'rafiaweshan4897@gmail.com');
+            Mail::to($adminEmail)->send(new MessageOnEmail($data, 'admin'));
+
+            Mail::to($data->email)->send(new MessageOnEmail($data, 'user'));
 
             return response()->json([
                 'status'  => true,
                 'message' => 'Message sent successfully!',
-                'data'    => $message
+                'data'    => $data
             ], 200);
 
         } catch (\Exception $e) {

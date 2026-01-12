@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\{Auth, File, Storage};
+use App\Models\Category;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 use App\Http\Resources\CategoryResource;
 
 class CategoryController extends Controller
@@ -103,7 +101,7 @@ class CategoryController extends Controller
 
     public function listCategories(Request $request)
     {
-        $query = Category::query();
+        $query = Category::query()->withCount('services');
 
          // Search functionality
     
