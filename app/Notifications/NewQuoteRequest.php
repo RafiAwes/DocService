@@ -37,80 +37,24 @@ class NewQuoteRequest extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $is_customer = $notifiable->id === $this->quote->user_id;
-        $url = url('/quotes/' . $this->quote->id);
-
-        // Load service details if it's a service quote
-        $serviceDetails = null;
-        if ($this->quote->type === 'service' && $this->quote->serviceQuote) {
-            $serviceDetails = $this->quote->serviceQuote->service;
-        }
-
-        if ($is_customer) {
-            // Email to customer
-            $mail = (new MailMessage)
-                ->subject('Quote Request Confirmation - #' . $this->quote->id)
+        $is_customer  = $notifiable->id === $this->quote->user_id;
+        $url = url('/quotes/'.$this->quote->id);
+        if ($is_customer){
+            return (new MailMessage)
+            ->subject('Quote Request Received - #' . $this->quote->id)
             ->greeting("Hello {$notifiable->name},")
-                ->line('Thank you for requesting a quote from DocAssist!')
-                ->line('We have successfully received your quote request and our team will review it shortly.');
-
-            if ($serviceDetails) {
-                $mail->line('')
-                    ->line('**Service Requested:**')
-                    ->line('**' . $serviceDetails->title . '**')
-                    ->line($serviceDetails->short_description ?? '');
-
-                if ($serviceDetails->price) {
-                    $mail->line('Base Price: $' . number_format($serviceDetails->price, 2));
-                }
-            }
-
-            $mail->line('')
-                ->line('**Quote Details:**')
-                ->line('Quote ID: #' . $this->quote->id)
-                ->line('Request Date: ' . $this->quote->created_at->format('F d, Y h:i A'))
-                ->line('')
-                ->action('View Quote Details', $url)
-                ->line('Our team will review your requirements and get back to you with a detailed quote within 24-48 hours.')
-                ->line('If you have any questions, please don\'t hesitate to contact us.')
-                ->line('')
-                ->line('Best regards,')
-                ->line('DocAssist Team');
-
-            return $mail;
+            ->line('Thank you for requesting a quote! We have received your request.')
+            ->action('View Quote', $url)
+            ->line('We will get back to you shortly.');
         }
-
-        // Email to admin
-        $mail = (new MailMessage)
-            ->subject('New Quote Request Received - #' . $this->quote->id)
+        return (new MailMessage)
+            ->subject('New Quote Request - #' . $this->quote->id)
             ->greeting("Hi Admin,")
-            ->line('A new quote request has been submitted and requires your attention.');
-
-        if ($serviceDetails) {
-            $mail->line('')
-                ->line('**Service Details:**')
-                ->line('Service: **' . $serviceDetails->title . '**')
-                ->line('Category: ' . ($serviceDetails->category->name ?? 'N/A'));
-
-            if ($serviceDetails->price) {
-                $mail->line('Base Price: $' . number_format($serviceDetails->price, 2));
-            }
-        }
-
-        $mail->line('')
-            ->line('**Customer Information:**')
-            ->line('Name: ' . $this->quote->user->name)
-            ->line('Email: ' . $this->quote->user->email)
-            ->line('')
-            ->line('**Quote Information:**')
-            ->line('Quote ID: #' . $this->quote->id)
-            ->line('Type: ' . ucfirst($this->quote->type))
-            ->line('Submitted: ' . $this->quote->created_at->format('F d, Y h:i A'))
-            ->line('')
+            ->line("A new quote request has been submitted by {$this->quote->user->name}.")
+            ->line('Quote Details:')
+            ->line('Quote ID: ' . $this->quote->id)
             ->action('Review Quote Request', $url)
-            ->line('Please review and respond to this quote request as soon as possible.');
-
-        return $mail;
+            ->line('Please review the quote request at your earliest convenience.');
     }
 
     /**

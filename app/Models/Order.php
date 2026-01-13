@@ -53,10 +53,20 @@ class Order extends Model
 
     public static function generateOrderId()
     {
-        do{
-            $orderid = random_int(100000, 999999);
-        } while (self::where('orderid', $orderid)->exists());
-
+        // Get the latest order ID
+        $latestOrder = self::orderBy('orderid', 'desc')->first();
+        
+        if ($latestOrder) {
+            // Increment the latest order ID
+            $nextNumber = intval($latestOrder->orderid) + 1;
+        } else {
+            // First order starts at 1
+            $nextNumber = 1;
+        }
+        
+        // Pad with leading zeros to ensure 6 digits
+        $orderid = str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+        
         return $orderid;
     }
 

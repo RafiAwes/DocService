@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\{Auth, DB, Mail, Notification};
 use App\Models\{Answers, CustomQuote, Questionaries, Quote, ServiceQuote, User};
 use App\Http\Controllers\Controller;
 use App\Notifications\NewQuoteRequest;
+use App\Mail\{CustomQuoteRequestToAdmin, CustomQuoteRequestToCustomer, ServiceQuoteRequestToAdmin, ServiceQuoteRequestToCustomer};
 
 class QuoteController extends Controller
 {
@@ -47,18 +48,31 @@ class QuoteController extends Controller
                     'residence_country' => $validated['residence_country'],
                 ]);
 
-                // sending notification to the use and admins
-                $user = Auth::user();
-                Notification::send($user, new NewQuoteRequest($quote));
-
-                $admins = User::where('role', 'admin')->get();
-                if ($admins->isNotEmpty()) {
-                    Notification::send($admins, new NewQuoteRequest($quote));
-                }
-
-
                 return $quote;
             });
+
+            // Load relationships for emails and notifications
+            $quote->load(['customQuote', 'user']);
+            $customQuote = $quote->customQuote;
+            $user = Auth::user();
+
+            // Send database notification
+            Notification::send($user, new NewQuoteRequest($quote));
+
+            // Send professional email to customer
+            Mail::to($customQuote->email)->send(new CustomQuoteRequestToCustomer($quote));
+
+            // Send professional email to admin
+            $adminEmail = env('ADMIN_EMAIL', config('mail.from.address'));
+            if ($adminEmail) {
+                Mail::to($adminEmail)->send(new CustomQuoteRequestToAdmin($quote));
+            }
+
+            // Notify all admins with database notification
+            $admins = User::where('role', 'admin')->get();
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new NewQuoteRequest($quote));
+            }
 
             // Return Success
             return response()->json([
@@ -82,6 +96,7 @@ class QuoteController extends Controller
         // 1. Basic Validation
         $request->validate([
             'service_id' => 'required|exists:services,id',
+            'delivery_id' => 'required|exists:deliveries,id',
             // Answers is now an array of objects
             'answers' => 'nullable|array',
             'answers.*.question_id' => 'required|exists:questionaries,id',
@@ -96,6 +111,7 @@ class QuoteController extends Controller
                 $quote = Quote::create([
                     'user_id' => Auth::user()->id,
                     'type' => 'service',
+                    'delivery_id' => $request->delivery_id,
                 ]);
 
                 // B. Create Service Quote Link
@@ -146,7 +162,7 @@ class QuoteController extends Controller
             });
 
             // Load relationships for emails and notifications
-            $result->load(['serviceQuote.service.category', 'user']);
+            $result->load(['serviceQuote.service.category', 'user', 'delivery']);
             
             $user = Auth::user();
             
@@ -156,22 +172,23 @@ class QuoteController extends Controller
             // Send professional email to customer
             Mail::to($user->email)->send(new ServiceQuoteRequestToCustomer($result));
 
-            // Notify all admins with database notification and email
+            // Send professional email to admin
+            $adminEmail = env('ADMIN_EMAIL', config('mail.from.address'));
+            if ($adminEmail) {
+                Mail::to($adminEmail)->send(new ServiceQuoteRequestToAdmin($result));
+            }
+
+            // Notify all admins with database notification
             $admins = User::where('role', 'admin')->get();
             if ($admins->isNotEmpty()) {
                 Notification::send($admins, new NewQuoteRequest($result));
-                
-                // Send professional email to each admin
-                foreach ($admins as $admin) {
-                    Mail::to($admin->email)->send(new ServiceQuoteRequestToAdmin($result));
-                }
             }
 
             // Return with eager loaded dynamic answers
             return response()->json([
                 'status' => true,
                 'message' => 'Quote created successfully',
-                'data' => $result->load(['serviceQuote.answers.questionary']),
+                'data' => $result->load(['serviceQuote.answers.questionary', 'delivery']),
             ], 201);
 
         } catch (\Exception $e) {
@@ -226,7 +243,8 @@ class QuoteController extends Controller
                 'customQuote',
                 'serviceQuote.service',
                 'serviceQuote.service.category',
-                'serviceQuote.answers.questionary', // <--- The Magic Change
+                'serviceQuote.answers.questionary',
+                'delivery',
             ])->findOrFail($quote->id);
 
             return response()->json([

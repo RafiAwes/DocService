@@ -16,8 +16,7 @@ class Service extends Model
         'price',
         'description',
         'short_description',
-        'hiw_title', // how it works title
-    ] ;
+    ];
 
     public function category() {
         return $this->belongsTo(Category::class,'category_id');
@@ -37,5 +36,9 @@ class Service extends Model
 
     public function requiredDocuments() {
         return $this->hasMany(RequiredDocuments::class);
+    }
+
+    public function howItWorks() {
+        return $this->hasMany(HowItWorks::class);
     }
 }

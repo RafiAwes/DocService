@@ -2,23 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\Answers;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Service;
-use App\Models\Transaction;
-use App\Models\User;
-use App\Notifications\NewOrderPlaced;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Validator;
-use Stripe\PaymentIntent;
-use Stripe\Stripe;
+use Illuminate\Support\Facades\{Auth, DB, File, Log, Notification, Validator};
+use App\Http\Controllers\Controller;
+use App\Models\{Answers, Order, OrderItem, Service, Transaction, User};
+use App\Notifications\NewOrderPlaced;
+use Stripe\{PaymentIntent, Stripe};
 
 // Optional if you still use the service, but we are using direct Stripe calls here for simplicity as requested.
 
@@ -75,7 +64,7 @@ class CheckoutController extends Controller
     public function paymentSuccess(Request $request)
     {
 
-        // 1️⃣ Validate
+        // 1 Validate
         $request->validate([
             'amount' => 'required',
             'payment_intent_id' => 'required|string',
@@ -87,7 +76,7 @@ class CheckoutController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
 
             'items.*.answers' => 'nullable|array',
-            'items.*.answers.*.question_id' => 'required|exists:questionaries,id',
+            'items.*.answers.*.question_id' => 'nullable',
             'items.*.answers.*.value' => 'nullable',
         ]);
        
@@ -98,7 +87,7 @@ class CheckoutController extends Controller
         try {
             return DB::transaction(function () use ($request, $user, $paymentIntent) {
 
-                // 2️⃣ Create Order
+                // 2 Create Order
                 $order = Order::create([
                     'user_id' => $user->id,
                     'orderid' => Order::generateOrderId(),

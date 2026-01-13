@@ -23,7 +23,8 @@ class ServiceController extends Controller
             'price' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
-            'hiw_title' => 'nullable|string|max:255',
+            'how_it_works' => 'nullable|array',
+            'how_it_works.*' => 'string|max:255',
 
             // Relation: Included Services
             'included_services' => 'nullable|array',
@@ -61,7 +62,6 @@ class ServiceController extends Controller
                     'price' => $validated['price'] ?? null,
                     'description' => $validated['description'] ?? null,
                     'short_description' => $validated['short_description'] ?? null,
-                    'hiw_title' => $validated['hiw_title'] ?? null,
                 ]);
 
                 // 2. Create Relations (using createMany for cleaner code)
@@ -82,6 +82,13 @@ class ServiceController extends Controller
                     $service->requiredDocuments()->createMany($validated['required_documents']);
                 }
 
+                // Create how it works entries
+                if (! empty($validated['how_it_works'])) {
+                    foreach ($validated['how_it_works'] as $title) {
+                        $service->howItWorks()->create(['title' => $title]);
+                    }
+                }
+
                 return $service;
             });
 
@@ -94,6 +101,7 @@ class ServiceController extends Controller
                     'processingTimes',
                     'questionaries',
                     'requiredDocuments',
+                    'howItWorks',
                 ]),
             ], 201);
 
@@ -124,6 +132,8 @@ class ServiceController extends Controller
             'type' => 'nullable|in:Quote,Checkout',
             'price' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
+            'how_it_works' => 'nullable|array',
+            'how_it_works.*' => 'string|max:255',
 
             // 1. Included Services
             'included_services' => 'nullable|array',
@@ -205,6 +215,17 @@ class ServiceController extends Controller
                 if ($request->has('required_documents')) {
                     $syncRelation('requiredDocuments', $validated['required_documents'] ?? []);
                 }
+
+                // Handle how it works
+                if ($request->has('how_it_works')) {
+                    // Delete all existing and create new ones
+                    $service->howItWorks()->delete();
+                    if (!empty($validated['how_it_works'])) {
+                        foreach ($validated['how_it_works'] as $title) {
+                            $service->howItWorks()->create(['title' => $title]);
+                        }
+                    }
+                }
             });
 
             // Refresh model to get updated relations
@@ -215,6 +236,8 @@ class ServiceController extends Controller
                     'includedServices',
                     'processingTimes',
                     'questionaries',
+                    'requiredDocuments',
+                    'howItWorks',
                     'requiredDocuments',
                 ]),
             ], 200);
@@ -294,6 +317,7 @@ class ServiceController extends Controller
             'questionaries',
             'requiredDocuments',
             'category',
+            'howItWorks',
         ])->orderBy('created_at', 'desc')->paginate($perPage);
 
         return response()->json([
@@ -310,6 +334,7 @@ class ServiceController extends Controller
             'processingTimes',
             'questionaries',
             'requiredDocuments',
+            'howItWorks',
         ])->find($service->id);
 
         // $totalPrice = $service->price;
@@ -368,6 +393,7 @@ class ServiceController extends Controller
             'processingTimes',
             'questionaries',
             'requiredDocuments',
+            'howItWorks',
         ])
         ->orderBy('created_at', 'desc')
         ->paginate($perPage);
