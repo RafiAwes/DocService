@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Auth, DB, Log};
 use App\Http\Controllers\Controller;
-use App\Models\{Answers, Cart, CartItem, DeliveryDetails, Questionaries, RequiredDocuments};
+use App\Models\{Answers, Cart, CartItem, Questionaries, RequiredDocuments};
 
 class CartController extends Controller
 {
@@ -19,7 +19,6 @@ class CartController extends Controller
 
         $cart = Cart::with([
             'items.service.category',
-            'items.service.deliveryDetails',
             'items.answers.questionary',
         ])->where('user_id', $user->id)->first();
 
@@ -40,32 +39,12 @@ class CartController extends Controller
         }
 
         $formattedItems = $cart->items->map(function ($item) {
-            // $service = $item->service;
-            $selectedDeliveryDetails = collect();
-
-            if (! empty($item->delivery_details_ids)) {
-                $selectedDeliveryDetails = DeliveryDetails::whereIn('id', $item->delivery_details_ids)
-                    ->get()
-                    ->map(function ($dd) {
-                        return [
-                            'id' => $dd->id,
-                            'delivery_type' => $dd->delivery_type,
-                            'details' => $dd->details,
-                            'price' => $dd->price,
-                        ];
-                    });
-            }
-
-            // dd($service->title);
-
             return [
                 'id' => $item->id,
                 'cart_id' => $item->cart_id,
                 'service_id' => $item->service_id,
                 'total_price' => $item->total_price,
                 'quantity' => $item->quantity,
-                'delivery_details_ids' => $item->delivery_details_ids,
-                'delivery_details' => $selectedDeliveryDetails,
                 'created_at' => $item->created_at,
                 'updated_at' => $item->updated_at,
 
@@ -113,12 +92,11 @@ class CartController extends Controller
      */
     public function addToCart(Request $request)
     {
-        // 1. Validation (Removed 'answers' rules since we aren't storing them)
+        // 1. Validation
         $request->validate([
             'total_price' => 'required|numeric|min:0',
             'service_id' => 'required|exists:services,id',
             'quantity' => 'nullable|integer|min:1',
-            'delivery_details_ids' => 'nullable|array',
         ]);
 
         $user = Auth::user();
@@ -130,13 +108,11 @@ class CartController extends Controller
                 $cart = Cart::firstOrCreate(['user_id' => $user->id]);
 
                 // B. Create the Cart Item
-                // We strictly add the item details here.
                 $cartItem = CartItem::create([
                     'cart_id' => $cart->id,
                     'service_id' => $request->service_id,
                     'total_price' => $request->total_price,
                     'quantity' => $request->quantity ?? 0, // Default to 1 if null
-                    'delivery_details_ids' => $request->delivery_details_ids ?? [],
                 ]);
 
                 // dd($cartItem);

@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Answers;
-use App\Models\DeliveryDetails;
 
 class ServiceQuote extends Model
 {
@@ -13,12 +11,9 @@ class ServiceQuote extends Model
         'quote_id',
         'order_id',
         'service_id',
-        'delivery_details_ids',
     ];
 
-    protected $casts = [
-        'delivery_details_ids' => 'array',
-    ];
+    protected $casts = [];
 
     public function quote()
     {
@@ -27,16 +22,6 @@ class ServiceQuote extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
-    }
-
-    /**
-     * Get the delivery details for the service quote.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function deliveryDetails(): HasMany
-    {
-        return $this->hasMany(DeliveryDetails::class, 'service_quote_id', 'id');
     }
 
     public function answers()

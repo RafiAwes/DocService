@@ -11,11 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('subscribers', function (Blueprint $table) {
-            $table->id();
-            $table->string('email')->unique();
-            $table->timestamps();
-        });
+        // Avoid failing when the table already exists (e.g., rerun on existing DB)
+        if (! Schema::hasTable('subscribers')) {
+            Schema::create('subscribers', function (Blueprint $table) {
+                $table->id();
+                $table->string('email')->unique();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

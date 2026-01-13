@@ -15,6 +15,8 @@ class Service extends Model
         'type',
         'price',
         'description',
+        'short_description',
+        'hiw_title', // how it works title
     ] ;
 
     public function category() {
@@ -27,10 +29,6 @@ class Service extends Model
 
     public function processingTimes() {
         return $this->hasMany(ProcessingTime::class);
-    }
-
-    public function deliveryDetails() {
-        return $this->hasMany(DeliveryDetails::class);
     }
 
     public function questionaries() {

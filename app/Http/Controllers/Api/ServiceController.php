@@ -22,6 +22,8 @@ class ServiceController extends Controller
             'type' => 'nullable|in:Quote,Checkout',
             'price' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
+            'hiw_title' => 'nullable|string|max:255',
 
             // Relation: Included Services
             'included_services' => 'nullable|array',
@@ -33,12 +35,6 @@ class ServiceController extends Controller
             'processing_times' => 'nullable|array',
             'processing_times.*.details' => 'nullable|string',
             'processing_times.*.time' => 'nullable|string|max:255', // Updated to string as discussed
-
-            // Relation: Delivery Details
-            'delivery_details' => 'nullable|array',
-            'delivery_details.*.delivery_type' => 'required_with:delivery_details|string',
-            'delivery_details.*.details' => 'required_with:delivery_details|string',
-            'delivery_details.*.price' => 'required_with:delivery_details|numeric',
 
             // Relation: Questionaries
             'questions' => 'nullable|array',
@@ -64,6 +60,8 @@ class ServiceController extends Controller
                     'type' => $validated['type'] ?? null,
                     'price' => $validated['price'] ?? null,
                     'description' => $validated['description'] ?? null,
+                    'short_description' => $validated['short_description'] ?? null,
+                    'hiw_title' => $validated['hiw_title'] ?? null,
                 ]);
 
                 // 2. Create Relations (using createMany for cleaner code)
@@ -74,10 +72,6 @@ class ServiceController extends Controller
 
                 if (! empty($validated['processing_times'])) {
                     $service->processingTimes()->createMany($validated['processing_times']);
-                }
-
-                if (! empty($validated['delivery_details'])) {
-                    $service->deliveryDetails()->createMany($validated['delivery_details']);
                 }
 
                 if (! empty($validated['questions'])) {
@@ -98,7 +92,6 @@ class ServiceController extends Controller
                 'data' => $service->load([
                     'includedServices',
                     'processingTimes',
-                    'deliveryDetails',
                     'questionaries',
                     'requiredDocuments',
                 ]),
@@ -145,14 +138,7 @@ class ServiceController extends Controller
             'processing_times.*.details' => 'nullable|string',
             'processing_times.*.time' => 'nullable|string|max:255',
 
-            // 3. Delivery Details
-            'delivery_details' => 'nullable|array',
-            'delivery_details.*.id' => 'nullable|integer|exists:delivery_details,id',
-            'delivery_details.*.delivery_type' => 'required_with:delivery_details|string',
-            'delivery_details.*.details' => 'required_with:delivery_details|string',
-            'delivery_details.*.price' => 'required_with:delivery_details|numeric',
-
-            // 4. Questionaries
+            // 3. Questionaries
             'questions' => 'nullable|array',
             'questions.*.id' => 'nullable|integer|exists:questionaries,id',
             'questions.*.name' => 'required_with:questions|string',
@@ -160,7 +146,7 @@ class ServiceController extends Controller
             'questions.*.type' => 'required_with:questions|in:Textbox,Input field,Drop down,Check box',
             'questions.*.options' => 'nullable|json',
 
-            // 5. Required Documents
+            // 4. Required Documents
             'required_documents' => 'nullable|array',
             'required_documents.*.id' => 'nullable|integer|exists:required_documents,id',
             'required_documents.*.title' => 'required_with:required_documents|string',
@@ -212,10 +198,6 @@ class ServiceController extends Controller
                     $syncRelation('processingTimes', $validated['processing_times'] ?? []);
                 }
 
-                if ($request->has('delivery_details')) {
-                    $syncRelation('deliveryDetails', $validated['delivery_details'] ?? []);
-                }
-
                 if ($request->has('questions')) {
                     $syncRelation('questionaries', $validated['questions'] ?? []);
                 }
@@ -232,12 +214,10 @@ class ServiceController extends Controller
                 'data' => $service->fresh()->load([
                     'includedServices',
                     'processingTimes',
-                    'deliveryDetails',
                     'questionaries',
                     'requiredDocuments',
                 ]),
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
@@ -311,7 +291,6 @@ class ServiceController extends Controller
         $services = $query->with([
             'includedServices',
             'processingTimes',
-            'deliveryDetails',
             'questionaries',
             'requiredDocuments',
             'category',
@@ -329,7 +308,6 @@ class ServiceController extends Controller
         $service = Service::with([
             'includedServices',
             'processingTimes',
-            'deliveryDetails',
             'questionaries',
             'requiredDocuments',
         ])->find($service->id);
@@ -388,7 +366,6 @@ class ServiceController extends Controller
         $servicesPaginator = $query->with([
             'includedServices',
             'processingTimes',
-            'deliveryDetails',
             'questionaries',
             'requiredDocuments',
         ])
@@ -406,7 +383,6 @@ class ServiceController extends Controller
                 
                 // Just basic counts or minimal info for the list view to keep it light
                 // (You can add full nested details here if you really need them in the list)
-                'delivery_options_count' => $service->deliveryDetails->count(),
                 'processing_time' => $service->processingTimes->first()->time ?? 'N/A', 
                 
                 'created_at' => $service->created_at->toDateTimeString(),

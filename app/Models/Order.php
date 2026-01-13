@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use App\Models\{Answers, Transaction};
 
 class Order extends Model
@@ -15,6 +15,7 @@ class Order extends Model
         'stripe_payment_id',
         'total_amount',
         'status',
+        'delivery_id',
     ];
 
     protected $casts = [
@@ -25,6 +26,11 @@ class Order extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function delivery(): BelongsTo
+    {
+        return $this->belongsTo(Delivery::class);
     }
     
     public function items()

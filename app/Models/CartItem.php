@@ -11,12 +11,9 @@ class CartItem extends Model
         'total_price',
         'service_id',
         'quantity',
-        'delivery_details_ids',
     ];
 
-    // Auto-convert JSON to Array when you use $cartItem->delivery_details_ids
     protected $casts = [
-        'delivery_details_ids' => 'array',
         'quantity' => 'integer',
     ];
 

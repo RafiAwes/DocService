@@ -80,11 +80,11 @@ class CheckoutController extends Controller
             'amount' => 'required',
             'payment_intent_id' => 'required|string',
             'is_south_africa' => 'required|boolean',
+            'delivery_id' => 'required|exists:deliveries,id',
 
             'items' => 'required|array|min:1',
             'items.*.service_id' => 'required|exists:services,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.delivery_ids' => 'nullable|array',
 
             'items.*.answers' => 'nullable|array',
             'items.*.answers.*.question_id' => 'required|exists:questionaries,id',
@@ -104,6 +104,7 @@ class CheckoutController extends Controller
                     'orderid' => Order::generateOrderId(),
                     'total_amount' => $request->amount,
                     'is_south_africa' => $request->is_south_africa,
+                    'delivery_id' => $request->delivery_id,
                     'stripe_payment_id' => $paymentIntent->id,
                     'status' => 'pending',
                 ]);
@@ -124,10 +125,6 @@ class CheckoutController extends Controller
 
                     $orderItemsByService[$service->id] = $orderItem;
 
-                    // Delivery mapping
-                    if (! empty($itemData['delivery_ids'])) {
-                        $orderItem->deliveryOptions()->attach($itemData['delivery_ids']);
-                    }
                     // Answers for THIS item
                     if (! empty($itemData['answers'])) {
                         foreach ($itemData['answers'] as $aIndex => $answer) {

@@ -82,7 +82,6 @@ class QuoteController extends Controller
         // 1. Basic Validation
         $request->validate([
             'service_id' => 'required|exists:services,id',
-            'delivery_details_ids' => 'nullable|array',
             // Answers is now an array of objects
             'answers' => 'nullable|array',
             'answers.*.question_id' => 'required|exists:questionaries,id',
@@ -103,8 +102,6 @@ class QuoteController extends Controller
                 $serviceQuote = ServiceQuote::create([
                     'quote_id' => $quote->id,
                     'service_id' => $request->service_id,
-                    // Store delivery details if you still use them, otherwise remove
-                    'delivery_details_ids' => $request->delivery_details_ids ?? [],
                 ]);
 
 

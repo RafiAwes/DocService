@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Table already created by earlier migration; skip to avoid duplicate-table error
+        if (Schema::hasTable('ratings')) {
+            return;
+        }
+
         Schema::create('ratings', function (Blueprint $table) {
             $table->id();
             $table->timestamps();

@@ -28,11 +28,11 @@ class OrderController extends Controller
             $query = Order::with([
                 'items.service',
                 'items.service.category',
-                'items.deliveryOptions',
                 'items.answers',
                 'items.answers.questionary',
                 'transactions',
-                'rating'
+                'rating',
+                'delivery'
             ])
                 ->where('user_id', $user->id);
 
@@ -91,11 +91,10 @@ class OrderController extends Controller
                 'items.service.requiredDocuments',
                 'items.service.processingTimes',
                 'items.service.includedServices',
-                'items.service.deliveryDetails',
-                'items.deliveryOptions',
                 'items.answers',
                 'items.answers.questionary',
                 'transactions',
+                'delivery'
             ]);
 
             // 2. SEARCH Logic (Search by orderid)
@@ -162,11 +161,10 @@ class OrderController extends Controller
                 'items.service.includedServices',
                 'items.service.questionaries',
                 'items.service.questionaries.answers',
-                'items.service.deliveryDetails',
-                'items.deliveryOptions',
                 'items.answers',
                 'items.answers.questionary',
                 'transactions',
+                'delivery'
             ])
             ->where(function ($q) use ($id) {
                 $q->where('id', $id)->orWhere('orderid', $id);

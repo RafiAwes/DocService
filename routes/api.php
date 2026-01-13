@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\{AdminDashboardController, CartController, CategoryController, CheckoutController, HomeController, MessageController, NewsController, NotificationController, OrderController, PagesController, ProfileController, QuoteController, RatingController, ServiceController, SocialAuthController, StripeWebhookController, SubscriberController, authController};
+use App\Http\Controllers\Api\{AdminDashboardController, CartController, CategoryController, CheckoutController, DeliveryController, HomeController, MessageController, NewsController, NotificationController, OrderController, PagesController, ProfileController, QuoteController, RatingController, ServiceController, SocialAuthController, StripeWebhookController, SubscriberController, authController};
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -29,6 +29,7 @@ Route::group(['controller' => authController::class], function () {
     // sending message from user
     Route::post('/send/message', [MessageController::class, 'sendMessage']);
     Route::get('/testimonials', [HomeController::class, 'testimonials']);
+    Route::get('/deliveries', [DeliveryController::class, 'list']);
 
 Route::group(['controller' => ServiceController::class], function () {
     Route::get('/service/list', 'serviceList');
@@ -105,6 +106,9 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::delete('/cart/remove/{itemId}', [CartController::class, 'removeItem']);
     Route::delete('/cart/clear', [CartController::class, 'clearCart']);
     Route::get('/cart/questions', [CartController::class, 'getCartRequirements']);
+
+    // Delivery options
+    Route::get('/deliveries', [DeliveryController::class, 'list']);
 });
 
 Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], function () {
@@ -143,6 +147,13 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
         Route::put('/faqs/{id}', 'update');
         Route::delete('/faqs/{id}', 'destroy');
 
+    });
+
+    // Delivery management
+    Route::group(['controller' => DeliveryController::class], function () {
+        Route::post('/deliveries', 'store');
+        Route::put('/deliveries/{id}', 'update');
+        Route::delete('/deliveries/{id}', 'destroy');
     });
 
     Route::group(['controller' => OrderController::class], function () {
