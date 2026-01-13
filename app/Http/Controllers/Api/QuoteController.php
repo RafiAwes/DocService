@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Auth, DB, Notification};
+use Illuminate\Support\Facades\{Auth, DB, Mail, Notification};
 use App\Models\{Answers, CustomQuote, Questionaries, Quote, ServiceQuote, User};
 use App\Http\Controllers\Controller;
 use App\Notifications\NewQuoteRequest;
@@ -139,20 +139,33 @@ class QuoteController extends Controller
                             'questionary_id' => $question->id,
                             'value' => $storedValue,
                         ]);
-
-                        // sending notification to the use and admins
-                        $user = Auth::user();
-                        Notification::send($user, new NewQuoteRequest($quote));
-
-                        $admins = User::where('role', 'admin')->get();
-                        if ($admins->isNotEmpty()) {
-                            Notification::send($admins, new NewQuoteRequest($quote));
-                        }
                     }
                 }
 
                 return $quote;
             });
+
+            // Load relationships for emails and notifications
+            $result->load(['serviceQuote.service.category', 'user']);
+            
+            $user = Auth::user();
+            
+            // Send database notification
+            Notification::send($user, new NewQuoteRequest($result));
+
+            // Send professional email to customer
+            Mail::to($user->email)->send(new ServiceQuoteRequestToCustomer($result));
+
+            // Notify all admins with database notification and email
+            $admins = User::where('role', 'admin')->get();
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new NewQuoteRequest($result));
+                
+                // Send professional email to each admin
+                foreach ($admins as $admin) {
+                    Mail::to($admin->email)->send(new ServiceQuoteRequestToAdmin($result));
+                }
+            }
 
             // Return with eager loaded dynamic answers
             return response()->json([
