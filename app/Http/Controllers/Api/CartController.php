@@ -107,7 +107,19 @@ class CartController extends Controller
                 // A. Get or Create the User's Cart
                 $cart = Cart::firstOrCreate(['user_id' => $user->id]);
 
-                // B. Create the Cart Item
+                // B. Check if the service already exists in the cart
+                $existingCartItem = CartItem::where('cart_id', $cart->id)
+                    ->where('service_id', $request->service_id)
+                    ->first();
+
+                if ($existingCartItem) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'You cannot add the same service again. Try increasing the quantity.',
+                    ], 422);
+                }
+
+                // C. Create the Cart Item
                 $cartItem = CartItem::create([
                     'cart_id' => $cart->id,
                     'service_id' => $request->service_id,

@@ -126,19 +126,21 @@ class ServiceController extends Controller
         $validated = $request->validate([
             // Main Service Fields
             'category_id' => 'sometimes|exists:categories,id',
+            'is_south_african' => 'sometimes|boolean',
             'title' => 'sometimes|string|max:255',
             'subtitle' => 'nullable|string|max:255',
             'order_type' => 'nullable|in:quote,checkout,null',
             'type' => 'nullable|in:Quote,Checkout',
             'price' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
             'how_it_works' => 'nullable|array',
             'how_it_works.*' => 'string|max:255',
 
             // 1. Included Services
             'included_services' => 'nullable|array',
             'included_services.*.id' => 'nullable|integer|exists:included_services,id', // <--- CRITICAL
-            'included_services.*.service_type' => 'required_with:included_services|string',
+            'included_services.*.service_type' => 'nullable|string',
             'included_services.*.included_details' => 'nullable|string',
             'included_services.*.price' => 'nullable|numeric',
 
@@ -151,69 +153,98 @@ class ServiceController extends Controller
             // 3. Questionaries
             'questions' => 'nullable|array',
             'questions.*.id' => 'nullable|integer|exists:questionaries,id',
-            'questions.*.name' => 'required_with:questions|string',
+            'questions.*.name' => 'nullable|string',
             // Align with new types (capitalized with spaces)
-            'questions.*.type' => 'required_with:questions|in:Textbox,Input field,Drop down,Check box',
+            'questions.*.type' => 'nullable|in:Textbox,Input field,Drop down,Check box',
             'questions.*.options' => 'nullable|json',
 
             // 4. Required Documents
             'required_documents' => 'nullable|array',
             'required_documents.*.id' => 'nullable|integer|exists:required_documents,id',
-            'required_documents.*.title' => 'required_with:required_documents|string',
+            'required_documents.*.title' => 'nullable|string',
         ]);
 
         try {
             DB::transaction(function () use ($service, $request, $validated) {
 
                 // A. Update Main Service Data
-                // Only updates fields provided in the request
-                $service->update($request->only([
-                    'category_id', 'title', 'subtitle', 'order_type', 'type', 'price', 'description',
-                ]));
+                // Only updates fields that are actually provided (not empty)
+                $updateData = [];
+                $fieldsToUpdate = [
+                    'category_id', 'is_south_african', 'title', 'subtitle', 
+                    'order_type', 'type', 'price', 'description', 'short_description'
+                ];
+                
+                foreach ($fieldsToUpdate as $field) {
+                    if ($request->has($field) && $request->filled($field)) {
+                        $updateData[$field] = $request->input($field);
+                    }
+                }
+                
+                if (!empty($updateData)) {
+                    $service->update($updateData);
+                }
 
                 /**
                  * Helper Function for "Smart Upsert"
                  *
                  * * @param string $relationName (The method name in Service Model)
                  * @param  array  $items  (The data array from request)
+                 * @param  string  $requiredField  (Field that must be present for the item to be valid)
                  */
-                $syncRelation = function ($relationName, $items) use ($service) {
+                $syncRelation = function ($relationName, $items, $requiredField = null) use ($service) {
                     if (is_null($items)) {
                         return;
                     } // If key not sent, do nothing
+
+                    // Filter out empty items (items without required field)
+                    if ($requiredField) {
+                        $items = array_filter($items, function($item) use ($requiredField) {
+                            return !empty($item[$requiredField]);
+                        });
+                    }
 
                     // 1. Identify IDs to Keep
                     // Collect all IDs present in the request. Any ID in DB but NOT here will be deleted.
                     $keepIds = collect($items)->pluck('id')->filter()->toArray();
 
                     // 2. Delete Missing Rows
-                    $service->{$relationName}()->whereNotIn('id', $keepIds)->delete();
+                    if (!empty($keepIds)) {
+                        $service->{$relationName}()->whereNotIn('id', $keepIds)->delete();
+                    } else {
+                        // If no items with IDs, delete all
+                        $service->{$relationName}()->delete();
+                    }
 
                     // 3. Update or Create Rows
                     foreach ($items as $item) {
-                        $service->{$relationName}()->updateOrCreate(
-                            ['id' => $item['id'] ?? null], // Search by ID (if null, it creates)
-                            $item // Data to save
-                        );
+                        if (isset($item['id']) && $item['id']) {
+                            // Update existing record
+                            $service->{$relationName}()->where('id', $item['id'])->update($item);
+                        } else {
+                            // Create new record (remove id key if it exists and is null)
+                            unset($item['id']);
+                            $service->{$relationName}()->create($item);
+                        }
                     }
                 };
 
                 // B. Apply Sync to All Relations
                 // We check $request->has() so we don't accidentally wipe data if the array wasn't sent at all.
                 if ($request->has('included_services')) {
-                    $syncRelation('includedServices', $validated['included_services'] ?? []);
+                    $syncRelation('includedServices', $validated['included_services'] ?? [], 'service_type');
                 }
 
                 if ($request->has('processing_times')) {
-                    $syncRelation('processingTimes', $validated['processing_times'] ?? []);
+                    $syncRelation('processingTimes', $validated['processing_times'] ?? [], 'time');
                 }
 
                 if ($request->has('questions')) {
-                    $syncRelation('questionaries', $validated['questions'] ?? []);
+                    $syncRelation('questionaries', $validated['questions'] ?? [], 'name');
                 }
 
                 if ($request->has('required_documents')) {
-                    $syncRelation('requiredDocuments', $validated['required_documents'] ?? []);
+                    $syncRelation('requiredDocuments', $validated['required_documents'] ?? [], 'title');
                 }
 
                 // Handle how it works
@@ -281,9 +312,9 @@ class ServiceController extends Controller
     public function serviceList(Request $request)
     {
         $query = Service::query();
-        if ($request->has('is_south_africa')) {
-            $isSouthAfrican = $request->boolean('is_south_africa');
-            $query->where('is_south_african', $isSouthAfrican);
+        if ($request->has('is_south_african')) {
+            $isSouthAfrican = $request->boolean('is_south_african');
+            $query->where('is_south_african', $isSouthAfrican ? 1 : 0);
         }
 
          // Search functionality
@@ -378,7 +409,7 @@ class ServiceController extends Controller
 
         // 3. Build the Query
         $query = Service::where('category_id', $categoryId)
-            ->where('is_south_african', $isSouthAfrican);
+            ->where('is_south_african', $isSouthAfrican ? 1 : 0);
 
         // 4. Handle Search
         if ($request->filled('search')) {

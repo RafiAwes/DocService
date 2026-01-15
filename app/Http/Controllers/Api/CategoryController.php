@@ -86,6 +86,14 @@ class CategoryController extends Controller
 
     public function deleteCategory(Category $category)
     {
+        // Prevent deletion when services still exist under this category
+        if ($category->services()->exists()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Cannot delete this category because it still has services. Please delete or reassign those services first.',
+            ], 422);
+        }
+
         // delete image if exists
         if ($category->image && File::exists(public_path($category->image))) {
             File::delete(public_path($category->image));
