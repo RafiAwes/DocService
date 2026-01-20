@@ -19,11 +19,24 @@ class Service extends Model
         'image',
     ];
 
-    protected $appends = ['image_url'];
-
-    public function getImageUrlAttribute()
+    public function getImageAttribute($value)
     {
-        return $this->image ? url('images/service/' . $this->image) : url('images/default/noimage.jpg');
+        if (!$value) {
+            return url('images/default/noimage.jpg');
+        }
+        
+        // If it's already a full URL, return as is
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+        
+        // If it's just the filename, construct the full path
+        if (!str_starts_with($value, 'images/')) {
+            return url('images/service/' . $value);
+        }
+        
+        // If it's already a path like 'images/service/xxx.jpg'
+        return url($value);
     }
 
     public function category() {

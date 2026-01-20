@@ -24,6 +24,9 @@ class ServiceController extends Controller
             'price' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
             'short_description' => 'nullable|string|max:500',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'how_it_works' => 'nullable|array',
+            'how_it_works.*' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -50,16 +53,102 @@ class ServiceController extends Controller
                 'short_description' => $validated['short_description'] ?? null,
             ]);
 
+            // Create how it works entries
+            if (!empty($validated['how_it_works'])) {
+                foreach ($validated['how_it_works'] as $title) {
+                    if (!empty($title)) {
+                        $service->howItWorks()->create(['title' => $title]);
+                    }
+                }
+            }
+
             return response()->json([
                 'status' => true,
                 'message' => 'Base service created successfully!',
-                'data' => $service,
+                'data' => $service->load('howItWorks'),
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to create service.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 1.5 Update Base Service (without relations)
+     */
+    public function updateBaseService(Request $request, Service $service)
+    {
+        $validated = $request->validate([
+            'category_id' => 'sometimes|exists:categories,id',
+            'is_south_african' => 'sometimes|boolean',
+            'title' => 'sometimes|string|max:255',
+            'subtitle' => 'nullable|string|max:255',
+            'order_type' => 'nullable|in:quote,checkout,null',
+            'type' => 'nullable|in:Quote,Checkout',
+            'price' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'how_it_works' => 'nullable|array',
+            'how_it_works.*' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $updateData = [];
+
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                if (!File::exists('images/service')) {
+                    File::makeDirectory('images/service', 0777, true, true);
+                }
+
+                // Delete old image if exists
+                if ($service->image && File::exists(public_path($service->image))) {
+                    File::delete(public_path($service->image));
+                }
+
+                $imageName = time() . '.' . $request->image->getClientOriginalExtension();
+                $request->image->move(public_path('images/service'), $imageName);
+                $updateData['image'] = 'images/service/' . $imageName;
+            }
+
+            // Add only provided fields
+            foreach ($validated as $key => $value) {
+                if ($key !== 'how_it_works' && $request->has($key) && $request->filled($key)) {
+                    $updateData[$key] = $value;
+                }
+            }
+
+            if (!empty($updateData)) {
+                $service->update($updateData);
+            }
+
+            // Handle how it works update
+            if ($request->has('how_it_works')) {
+                $service->howItWorks()->delete();
+                if (!empty($validated['how_it_works'])) {
+                    foreach ($validated['how_it_works'] as $title) {
+                        if (!empty($title)) {
+                            $service->howItWorks()->create(['title' => $title]);
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Base service updated successfully!',
+                'data' => $service->load('howItWorks'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update service.',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -187,35 +276,7 @@ class ServiceController extends Controller
         }
     }
 
-    /**
-     * 6. Add How It Works
-     */
-    public function addHowItWorks(Request $request, Service $service)
-    {
-        $data = $request->validate([
-            'how_it_works' => 'required|array|min:1',
-            'how_it_works.*' => 'required|string|max:255',
-        ]);
 
-        try {
-            foreach ($data['how_it_works'] as $title) {
-                $service->howItWorks()->create(['title' => $title]);
-            }
-
-            return response()->json([
-                'status' => true,
-                'message' => 'How it works added successfully!',
-                'data' => $service->load('howItWorks'),
-            ], 201);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to add how it works.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
 
     /**
      * UPDATE OPERATIONS
@@ -418,39 +479,7 @@ class ServiceController extends Controller
         }
     }
 
-    /**
-     * 11. Update How It Works
-     */
-    public function updateHowItWorks(Request $request, Service $service)
-    {
-        $data = $request->validate([
-            'how_it_works' => 'required|array',
-            'how_it_works.*' => 'nullable|string|max:255',
-        ]);
 
-        try {
-            $service->howItWorks()->delete();
-
-            foreach ($data['how_it_works'] as $title) {
-                if (!empty($title)) {
-                    $service->howItWorks()->create(['title' => $title]);
-                }
-            }
-
-            return response()->json([
-                'status' => true,
-                'message' => 'How it works updated successfully!',
-                'data' => $service->load('howItWorks'),
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to update how it works.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
 
     public function createService(Request $request)
     {

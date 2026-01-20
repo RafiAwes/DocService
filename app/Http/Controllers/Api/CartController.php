@@ -113,18 +113,22 @@ class CartController extends Controller
                     ->first();
 
                 if ($existingCartItem) {
+
+                $existingCartItem->quantity += 1;
+                $existingCartItem->save();
                     return response()->json([
-                        'status' => false,
-                        'message' => 'You cannot add the same service again. Try increasing the quantity.',
-                    ], 422);
+                        'status' => true,
+                        'data' => $existingCartItem,
+                        'message' => 'Item amount increased in the cart.',
+                    ], 200);
                 }
 
                 // C. Create the Cart Item
                 $cartItem = CartItem::create([
                     'cart_id' => $cart->id,
                     'service_id' => $request->service_id,
+                    'quantity' => $request->quantity ?? 1,
                     'total_price' => $request->total_price,
-                    'quantity' => $request->quantity ?? 1, // Default to 1 if null
                 ]);
 
                 // dd($cartItem);
