@@ -74,6 +74,27 @@ class authController extends Controller
                 ], 422);
             }
         }
+
+        // Ban checks
+        if ($user->ban_type === 'ban_permanently') {
+            return response()->json([
+                'message' => 'Your account has been permanently banned.',
+            ], 403);
+        }
+
+        if ($user->banned_until && Carbon::now()->lt($user->banned_until)) {
+            return response()->json([
+                'message' => 'Your account is temporarily banned until '.$user->banned_until->format('jS F Y'),
+            ], 403);
+        }
+
+        // Auto-unban if ban period has passed
+        if ($user->banned_until && Carbon::now()->gte($user->banned_until)) {
+            $user->ban_type = null;
+            $user->banned_until = null;
+            $user->ban_reason = null;
+            $user->save();
+        }
         
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -371,4 +392,6 @@ class authController extends Controller
             'message' => 'Verification code resent successfully. Please check your email.'
         ], 200);
     }
+
+   
 }

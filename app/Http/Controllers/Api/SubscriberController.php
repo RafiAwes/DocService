@@ -14,7 +14,7 @@ class SubscriberController extends Controller
     public function index(Request $request)
     {
         $perPage = $request->query('per_page', 10);
-        $subscribers = Subscriber::paginate($perPage);
+        $subscribers = Subscriber::latest('id')->paginate($perPage);
         return response()->json([
             'success' => true,
             'data' => $subscribers,

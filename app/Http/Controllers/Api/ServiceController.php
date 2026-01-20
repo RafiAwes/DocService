@@ -2,14 +2,456 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-// use App\Models\Category; // Not strictly needed unless you use Category model directly
-use App\Models\Service;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{DB, File};
+use App\Models\Service;
+use App\Http\Controllers\Controller;
 
 class ServiceController extends Controller
 {
+    /**
+     * 1. Create Base Service (without relations)
+     */
+    public function createBaseService(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'is_south_african' => 'required|boolean',
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string|max:255',
+            'order_type' => 'nullable|in:quote,checkout,null',
+            'type' => 'nullable|in:Quote,Checkout',
+            'price' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string',
+            'short_description' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $imageName = null;
+            if (!File::exists('images/service')) {
+                File::makeDirectory('images/service', 0777, true, true);
+            }
+
+            if ($request->hasFile('image')) {
+                $imageName = time() . '.' . $request->image->getClientOriginalExtension();
+                $request->image->move(public_path('images/service'), $imageName);
+            }
+
+            $service = Service::create([
+                'category_id' => $validated['category_id'],
+                'is_south_african' => $validated['is_south_african'],
+                'title' => $validated['title'],
+                'subtitle' => $validated['subtitle'] ?? null,
+                'order_type' => $validated['order_type'] ?? 'null',
+                'type' => $validated['type'] ?? null,
+                'price' => $validated['price'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'image' => $imageName ? 'images/service/' . $imageName : null,
+                'short_description' => $validated['short_description'] ?? null,
+            ]);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Base service created successfully!',
+                'data' => $service,
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to create service.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 2. Add Included Services
+     */
+    public function addIncludedServices(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'included_services' => 'required|array|min:1',
+            'included_services.*.service_type' => 'required|string',
+            'included_services.*.included_details' => 'nullable|string',
+            'included_services.*.price' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $service->includedServices()->createMany($data['included_services']);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Included services added successfully!',
+                'data' => $service->load('includedServices'),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to add included services.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 3. Add Processing Times
+     */
+    public function addProcessingTimes(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'processing_times' => 'required|array|min:1',
+            'processing_times.*.details' => 'nullable|string',
+            'processing_times.*.time' => 'required|string|max:255',
+        ]);
+
+        try {
+            $service->processingTimes()->createMany($data['processing_times']);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Processing times added successfully!',
+                'data' => $service->load('processingTimes'),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to add processing times.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 4. Add Questions
+     */
+    public function addQuestions(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'questions' => 'required|array|min:1',
+            'questions.*.name' => 'required|string',
+            'questions.*.type' => 'required|in:Textbox,Input field,Drop down,Check box',
+            'questions.*.options' => 'nullable|json',
+        ]);
+
+        try {
+            $service->questionaries()->createMany($data['questions']);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Questions added successfully!',
+                'data' => $service->load('questionaries'),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to add questions.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 5. Add Required Documents
+     */
+    public function addRequiredDocuments(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'required_documents' => 'required|array|min:1',
+            'required_documents.*.title' => 'required|string',
+        ]);
+
+        try {
+            // Filter out empty documents
+            $documents = array_filter($data['required_documents'], function ($doc) {
+                return !empty($doc['title']);
+            });
+
+            $service->requiredDocuments()->createMany($documents);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Required documents added successfully!',
+                'data' => $service->load('requiredDocuments'),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to add required documents.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 6. Add How It Works
+     */
+    public function addHowItWorks(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'how_it_works' => 'required|array|min:1',
+            'how_it_works.*' => 'required|string|max:255',
+        ]);
+
+        try {
+            foreach ($data['how_it_works'] as $title) {
+                $service->howItWorks()->create(['title' => $title]);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'How it works added successfully!',
+                'data' => $service->load('howItWorks'),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to add how it works.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * UPDATE OPERATIONS
+     */
+
+    /**
+     * 7. Update Included Services
+     */
+    public function updateIncludedServices(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'included_services' => 'required|array',
+            'included_services.*.id' => 'nullable|integer|exists:included_services,id',
+            'included_services.*.service_type' => 'nullable|string',
+            'included_services.*.included_details' => 'nullable|string',
+            'included_services.*.price' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $items = array_filter($data['included_services'], function ($item) {
+                return !empty($item['service_type']);
+            });
+
+            $keepIds = collect($items)->pluck('id')->filter()->toArray();
+
+            if (!empty($keepIds)) {
+                $service->includedServices()->whereNotIn('id', $keepIds)->delete();
+            } else {
+                $service->includedServices()->delete();
+            }
+
+            foreach ($items as $item) {
+                if (isset($item['id']) && $item['id']) {
+                    $service->includedServices()->where('id', $item['id'])->update($item);
+                } else {
+                    unset($item['id']);
+                    $service->includedServices()->create($item);
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Included services updated successfully!',
+                'data' => $service->load('includedServices'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update included services.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 8. Update Processing Times
+     */
+    public function updateProcessingTimes(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'processing_times' => 'required|array',
+            'processing_times.*.id' => 'nullable|integer|exists:processing_times,id',
+            'processing_times.*.details' => 'nullable|string',
+            'processing_times.*.time' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $items = array_filter($data['processing_times'], function ($item) {
+                return !empty($item['time']);
+            });
+
+            $keepIds = collect($items)->pluck('id')->filter()->toArray();
+
+            if (!empty($keepIds)) {
+                $service->processingTimes()->whereNotIn('id', $keepIds)->delete();
+            } else {
+                $service->processingTimes()->delete();
+            }
+
+            foreach ($items as $item) {
+                if (isset($item['id']) && $item['id']) {
+                    $service->processingTimes()->where('id', $item['id'])->update($item);
+                } else {
+                    unset($item['id']);
+                    $service->processingTimes()->create($item);
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Processing times updated successfully!',
+                'data' => $service->load('processingTimes'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update processing times.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 9. Update Questions
+     */
+    public function updateQuestions(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'questions' => 'required|array',
+            'questions.*.id' => 'nullable|integer|exists:questionaries,id',
+            'questions.*.name' => 'nullable|string',
+            'questions.*.type' => 'nullable|in:Textbox,Input field,Drop down,Check box',
+            'questions.*.options' => 'nullable|json',
+        ]);
+
+        try {
+            $items = array_filter($data['questions'], function ($item) {
+                return !empty($item['name']);
+            });
+
+            $keepIds = collect($items)->pluck('id')->filter()->toArray();
+
+            if (!empty($keepIds)) {
+                $service->questionaries()->whereNotIn('id', $keepIds)->delete();
+            } else {
+                $service->questionaries()->delete();
+            }
+
+            foreach ($items as $item) {
+                if (isset($item['id']) && $item['id']) {
+                    $service->questionaries()->where('id', $item['id'])->update($item);
+                } else {
+                    unset($item['id']);
+                    $service->questionaries()->create($item);
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Questions updated successfully!',
+                'data' => $service->load('questionaries'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update questions.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 10. Update Required Documents
+     */
+    public function updateRequiredDocuments(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'required_documents' => 'required|array',
+            'required_documents.*.id' => 'nullable|integer|exists:required_documents,id',
+            'required_documents.*.title' => 'nullable|string',
+        ]);
+
+        try {
+            $items = array_filter($data['required_documents'], function ($item) {
+                return !empty($item['title']);
+            });
+
+            $keepIds = collect($items)->pluck('id')->filter()->toArray();
+
+            if (!empty($keepIds)) {
+                $service->requiredDocuments()->whereNotIn('id', $keepIds)->delete();
+            } else {
+                $service->requiredDocuments()->delete();
+            }
+
+            foreach ($items as $item) {
+                if (isset($item['id']) && $item['id']) {
+                    $service->requiredDocuments()->where('id', $item['id'])->update($item);
+                } else {
+                    unset($item['id']);
+                    $service->requiredDocuments()->create($item);
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Required documents updated successfully!',
+                'data' => $service->load('requiredDocuments'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update required documents.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 11. Update How It Works
+     */
+    public function updateHowItWorks(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'how_it_works' => 'required|array',
+            'how_it_works.*' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $service->howItWorks()->delete();
+
+            foreach ($data['how_it_works'] as $title) {
+                if (!empty($title)) {
+                    $service->howItWorks()->create(['title' => $title]);
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'How it works updated successfully!',
+                'data' => $service->load('howItWorks'),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update how it works.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function createService(Request $request)
     {
         $validated = $request->validate([
@@ -22,6 +464,7 @@ class ServiceController extends Controller
             'type' => 'nullable|in:Quote,Checkout',
             'price' => 'nullable|numeric|min:0',
             'description' => 'nullable|string',
+            'image' => 'nullable|string|max:255',
             'short_description' => 'nullable|string|max:500',
             'how_it_works' => 'nullable|array',
             'how_it_works.*' => 'string|max:255',
@@ -50,7 +493,19 @@ class ServiceController extends Controller
 
         try {
             // Start Transaction
-            $service = DB::transaction(function () use ($validated) {
+            $service = DB::transaction(function () use ($validated, $request) {
+
+                $imageName = null;
+                 if(!File::exists('images/service'))
+                 {
+                     File::makeDirectory('images/service',0777,true,true);
+                 }
+
+                if($request->hasFile('image'))
+                {
+                    $imageName = time().'.'.$request->image->getClientOriginalExtension();
+                    $request->image->move(public_path('images/service'), $imageName);
+                }
                 // 1. Create Main Service
                 $service = Service::create([
                     'category_id' => $validated['category_id'],
@@ -61,6 +516,7 @@ class ServiceController extends Controller
                     'type' => $validated['type'] ?? null,
                     'price' => $validated['price'] ?? null,
                     'description' => $validated['description'] ?? null,
+                    'image' => $imageName ? 'images/service/'.$imageName : null,
                     'short_description' => $validated['short_description'] ?? null,
                 ]);
 

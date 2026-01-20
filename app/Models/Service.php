@@ -16,7 +16,15 @@ class Service extends Model
         'price',
         'description',
         'short_description',
+        'image',
     ];
+
+    protected $appends = ['image_url'];
+
+    public function getImageUrlAttribute()
+    {
+        return $this->image ? url('images/service/' . $this->image) : url('images/default/noimage.jpg');
+    }
 
     public function category() {
         return $this->belongsTo(Category::class,'category_id');

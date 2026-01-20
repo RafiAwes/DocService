@@ -116,6 +116,8 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
     Route::group(['controller' => AdminDashboardController::class], function () {
         Route::get('dashboard', 'index');
         Route::get('dashboard/chart-data', 'getChartData');
+        Route::get('users/list', 'getUserList');
+        Route::post('users/ban/{user}', 'banUser');
     });
 
 
@@ -126,14 +128,32 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
     });
 
     Route::group(['controller' => ServiceController::class], function () {
+        // Old endpoints (kept for backward compatibility)
         Route::post('create/service', 'createService');
         Route::put('update/service/{service}', 'updateService');
         Route::delete('delete/service/{service}', 'deleteService');
+
+        // New granular endpoints for CREATE
+        Route::post('service/create-base', 'createBaseService');
+        Route::post('service/{service}/add-included-services', 'addIncludedServices');
+        Route::post('service/{service}/add-processing-times', 'addProcessingTimes');
+        Route::post('service/{service}/add-questions', 'addQuestions');
+        Route::post('service/{service}/add-required-documents', 'addRequiredDocuments');
+        Route::post('service/{service}/add-how-it-works', 'addHowItWorks');
+
+        // New granular endpoints for UPDATE
+        Route::put('service/{service}/update-included-services', 'updateIncludedServices');
+        Route::put('service/{service}/update-processing-times', 'updateProcessingTimes');
+        Route::put('service/{service}/update-questions', 'updateQuestions');
+        Route::put('service/{service}/update-required-documents', 'updateRequiredDocuments');
+        Route::put('service/{service}/update-how-it-works', 'updateHowItWorks');
     });
 
     Route::group(['controller' => QuoteController::class], function () {
         Route::get('quotes-custom/list', 'customQuoteList');
+        Route::put('quote/reply/{quote}', 'replyToQuote');
         Route::get('quotes-service/list', 'serviceQuoteList');
+        Route::put('quotes-service/reply/{quote}', 'replyToServiceQuote');
         Route::get('quote/details/{quote}', 'quoteDetails');
         Route::delete('delete/quote/{quote}', 'deleteQuote');
     });
@@ -144,7 +164,7 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
         Route::post('/pages/save', 'savePage');
         // Manage FAQs
         Route::post('/faqs', 'store');
-        Route::put('/faqs/{id}', 'update');
+        Route::put('/faqs/{id}', 'update');     
         Route::delete('/faqs/{id}', 'destroy');
 
     });

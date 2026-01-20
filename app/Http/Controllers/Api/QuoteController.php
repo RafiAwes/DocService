@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Auth, DB, Mail, Notification};
-use App\Models\{Answers, CustomQuote, Questionaries, Quote, ServiceQuote, User};
 use App\Http\Controllers\Controller;
+use App\Mail\{CustomQuoteRequestToAdmin, CustomQuoteRequestToCustomer, CustomQuotesReplyMail, ServiceQuoteRequestToAdmin, ServiceQuoteRequestToCustomer};
+use App\Models\{Answers, CustomQuote, Questionaries, Quote, ServiceQuote, User};
 use App\Notifications\NewQuoteRequest;
-use App\Mail\{CustomQuoteRequestToAdmin, CustomQuoteRequestToCustomer, ServiceQuoteRequestToAdmin, ServiceQuoteRequestToCustomer};
 
 class QuoteController extends Controller
 {
@@ -120,7 +120,6 @@ class QuoteController extends Controller
                     'service_id' => $request->service_id,
                 ]);
 
-
                 // C. Process Dynamic Answers
                 if ($request->has('answers')) {
 
@@ -163,9 +162,9 @@ class QuoteController extends Controller
 
             // Load relationships for emails and notifications
             $result->load(['serviceQuote.service.category', 'user', 'delivery']);
-            
+
             $user = Auth::user();
-            
+
             // Send database notification
             Notification::send($user, new NewQuoteRequest($result));
 
@@ -262,11 +261,17 @@ class QuoteController extends Controller
         }
     }
 
-    public function customQuoteList()
+    public function customQuoteList(Request $request)
     {
+        $request->validate([
+            'filter' => 'nullable|in:New,Mailed',
+        ]);
+        $filter = $request->query('filter');
         try {
             $perPage = request()->query('per_page', 10);
-            $quotes = CustomQuote::with(['quote.user'])->latest('id')->paginate($perPage);
+            $quotes = CustomQuote::with(['quote.user'])->when($filter, function ($query, $filter) {
+                $query->where('status', $filter);
+            })->latest('id')->paginate($perPage);
 
             return response()->json([
                 'status' => true,
@@ -283,12 +288,19 @@ class QuoteController extends Controller
         }
     }
 
-    public function ServiceQuoteList()
+    public function ServiceQuoteList(Request $request)
     {
+                $request->validate([
+            'filter' => 'nullable|in:New,Mailed',
+        ]);
+        $filter = $request->query('filter');
+
         try {
             $perPage = request()->query('per_page', 10);
             $quotes = Quote::with(['user', 'serviceQuote', 'serviceQuote.service', 'serviceQuote.service.category'])->
-            latest('id')->paginate($perPage);
+            latest('id')->when($filter, function ($query, $filter) {
+                $query->where('status', $filter);
+            })->paginate($perPage);
 
             return response()->json([
                 'status' => true,
@@ -300,6 +312,58 @@ class QuoteController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to fetch quotes',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function replyToQuote(Request $request, $id)
+    {
+        try {
+            $quotes_replied = CustomQuote::findOrFail($id);
+            $quotes_replied->status = 'Mailed';
+            $quotes_replied->reply = $request->input('reply');
+            $quotes_replied->save();
+
+            Mail::to($quotes_replied->email)
+                ->send(new CustomQuotesReplyMail($quotes_replied));
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Quotes replied successfully',
+                'data' => $quotes_replied,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to reply quotes',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function replyToServiceQuote(Request $request, $id)
+    {
+        try {
+             $quotes_replied = Quote::with('user')->findOrFail($id);
+            $quotes_replied->status = 'Mailed';
+            $quotes_replied->reply = $request->input('reply');
+            $quotes_replied->save();
+
+            Mail::to($quotes_replied->user->email)
+                ->send(new CustomQuotesReplyMail($quotes_replied));
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Quotes replied successfully',
+                'data' => $quotes_replied,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to reply quotes',
                 'error' => $e->getMessage(),
             ], 500);
         }

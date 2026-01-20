@@ -124,7 +124,7 @@ class CartController extends Controller
                     'cart_id' => $cart->id,
                     'service_id' => $request->service_id,
                     'total_price' => $request->total_price,
-                    'quantity' => $request->quantity ?? 0, // Default to 1 if null
+                    'quantity' => $request->quantity ?? 1, // Default to 1 if null
                 ]);
 
                 // dd($cartItem);
@@ -261,9 +261,9 @@ class CartController extends Controller
             // Ensure we have fresh service relations for this item
             $service = $item->service->loadMissing(['questionaries', 'requiredDocuments']);
 
-            $requiredDocs = $service->requiredDocuments;
+            $requiredDocs = $service->required_documents;
             // Fallback: in case eager load failed, fetch by service_id
-            if ($requiredDocs === null || $requiredDocs->isEmpty()) {
+            if (empty($requiredDocs) || $requiredDocs->isEmpty()) {
                 $requiredDocs = RequiredDocuments::where('service_id', $item->service_id)->get();
             }
 

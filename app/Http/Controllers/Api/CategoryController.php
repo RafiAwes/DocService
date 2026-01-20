@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Auth, File, Storage};
-use App\Models\Category;
+use Illuminate\Support\Facades\{Auth, File, Storage, image};
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
+use App\Models\Category;
+
 
 class CategoryController extends Controller
 {
@@ -36,7 +37,7 @@ class CategoryController extends Controller
         $category = new Category();
         $category->name = $data['name'];
         if ($imageName) {
-            $category->image = 'images/category/'.$imageName;
+            $category->fill(['image' => 'images/category/'.$imageName]);
         }
         $category->save();
 
@@ -63,14 +64,13 @@ class CategoryController extends Controller
         // processing image to upload
         if ($request->hasFile('image')) 
         {
-            if ($category->image && File::exists(public_path('images/category/'.$category->image))) {
-                File::delete(public_path('images/category/'.$category->image));
+            if ($category->image && File::exists(public_path($category->image))) {
+                File::delete(public_path($category->image));
             }
 
             $imageName = time().'.'.$request->image->getClientOriginalExtension();
             $request->image->move(public_path('images/category'), $imageName);
-            $category->image = 'images/category/'.$imageName;
-            // $category->image = 'images/category/'. $imageName;
+            $category->fill(['image' => 'images/category/'.$imageName]);
         }
 
         if (isset($data['name'])) {

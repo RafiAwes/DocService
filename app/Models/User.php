@@ -33,11 +33,15 @@ class User extends Authenticatable
         'reset_token',
         'reset_token_verified',
         'reset_token_verified_at',
+        'ban_type',
+        'banned_until',
+        'ban_reason',
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
         'reset_token_expires_at' => 'datetime', 
+        'banned_until' => 'datetime',
     ];
 
     /**
