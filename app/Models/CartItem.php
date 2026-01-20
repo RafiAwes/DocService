@@ -47,7 +47,6 @@ class CartItem extends Model
         ]);
     }
 
-
     /**
      * Relationship: The Dynamic Answers
      * This looks into the 'answers' table where 'cart_item_id' matches this ID.

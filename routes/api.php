@@ -129,8 +129,8 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
 
     Route::group(['controller' => ServiceController::class], function () {
         // Old endpoints (kept for backward compatibility)
-        Route::post('create/service', 'createService');
-        Route::put('update/service/{service}', 'updateService');
+        Route::post('create/service', 'createService'); // to be deprecated
+        Route::put('update/service/{service}', 'updateService'); // to be deprecated
         Route::delete('delete/service/{service}', 'deleteService');
 
         // New granular endpoints for CREATE
@@ -139,14 +139,13 @@ Route::group(['middleware' => ['auth:sanctum', 'admin'], 'prefix' => 'admin'], f
         Route::post('service/{service}/add-processing-times', 'addProcessingTimes');
         Route::post('service/{service}/add-questions', 'addQuestions');
         Route::post('service/{service}/add-required-documents', 'addRequiredDocuments');
-        Route::post('service/{service}/add-how-it-works', 'addHowItWorks');
 
         // New granular endpoints for UPDATE
+        Route::put('service/{service}/update-base', 'updateBaseService');
         Route::put('service/{service}/update-included-services', 'updateIncludedServices');
         Route::put('service/{service}/update-processing-times', 'updateProcessingTimes');
         Route::put('service/{service}/update-questions', 'updateQuestions');
         Route::put('service/{service}/update-required-documents', 'updateRequiredDocuments');
-        Route::put('service/{service}/update-how-it-works', 'updateHowItWorks');
     });
 
     Route::group(['controller' => QuoteController::class], function () {
